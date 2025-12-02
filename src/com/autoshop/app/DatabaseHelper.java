@@ -2,6 +2,7 @@ package com.autoshop.app;
 
 import java.sql.*;
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 public class DatabaseHelper {
@@ -68,7 +69,7 @@ public class DatabaseHelper {
                     pstmt.setInt(1, carId);
                     pstmt.setLong(2, appt.getDate().getTime());
                     pstmt.setString(3, appt.getProblemDescription());
-                    pstmt.setString(4, "Scheduled");
+                    pstmt.setString(4, AppointmentStatus.SCHEDULED.name());
                     pstmt.executeUpdate();
                 }
                 conn.commit();
@@ -99,6 +100,43 @@ public class DatabaseHelper {
             pstmt.executeUpdate();
             return pstmt.getGeneratedKeys().getInt(1);
         }
+    }
+
+    // NEW: Get Today's appointments OR any appointment that is currently IN_PROGRESS
+    public static List<Appointment> getDashboardAppointments(java.util.Date day) throws SQLException {
+        List<Appointment> list = new ArrayList<>();
+
+        // 1. Calculate Today's Range
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.setTime(day);
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        cal.set(java.util.Calendar.MINUTE, 0);
+        cal.set(java.util.Calendar.SECOND, 0);
+        cal.set(java.util.Calendar.MILLISECOND, 0);
+        long start = cal.getTimeInMillis();
+
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 23);
+        cal.set(java.util.Calendar.MINUTE, 59);
+        cal.set(java.util.Calendar.SECOND, 59);
+        cal.set(java.util.Calendar.MILLISECOND, 999);
+        String sql = getString(cal, start);
+
+        return getAppointments(list, sql);
+    }
+
+    private static String getString(Calendar cal, long start) {
+        long end = cal.getTimeInMillis();
+
+        // 2. The Hybrid SQL
+        String sql = "SELECT app.appointment_id, app.date, app.problem, app.status, " +
+                "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
+                "client.name, client.phone " +
+                "FROM Appointments app " +
+                "JOIN Cars car ON app.car_id = car.car_id " +
+                "JOIN Clients client ON car.client_id = client.client_id " +
+                "WHERE (app.date >= " + start + " AND app.date <= " + end + ") " +
+                "OR (app.status = 'IN_PROGRESS')"; // <--- The Magic Fix
+        return sql;
     }
 
     // Helper: Find car by plate. If not found, create new.
@@ -134,29 +172,7 @@ public class DatabaseHelper {
                 "JOIN Cars car ON app.car_id = car.car_id " +
                 "JOIN Clients client ON car.client_id = client.client_id";
 
-        try (Connection conn = connect();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
-
-            while (rs.next()) {
-                Appointment appt = new Appointment(
-                        rs.getInt("appointment_id"),
-                        rs.getInt("car_id"),
-                        new Date(rs.getLong("date")),
-                        rs.getString("problem"),
-                        rs.getString("status"),
-                        rs.getString("name"),
-                        rs.getString("phone"),
-                        rs.getString("license_plate"),
-                        rs.getString("brand_name"),
-                        rs.getString("model"),
-                        rs.getInt("year"),          // NEW
-                        rs.getString("photo_path")  // NEW
-                );
-                list.add(appt);
-            }
-        }
-        return list;
+        return getAppointments(list, sql);
     }
 
     // 4. DELETE
@@ -177,7 +193,7 @@ public class DatabaseHelper {
                 try (PreparedStatement pstmt = conn.prepareStatement(sqlAppt)) {
                     pstmt.setLong(1, appt.getDate().getTime());
                     pstmt.setString(2, appt.getProblemDescription());
-                    pstmt.setString(3, appt.getStatus());
+                    pstmt.setString(3, appt.getStatus().name());
                     pstmt.setInt(4, appt.getAppointmentID());
                     pstmt.executeUpdate();
                 }
@@ -206,6 +222,96 @@ public class DatabaseHelper {
             } catch (SQLException e) {
                 conn.rollback();
                 throw e;
+            }
+        }
+    }
+
+    // 5. GET FILTERED
+    public static List<Appointment> getAppointmentsForDay(java.util.Date day) throws SQLException {
+        List<Appointment> list = new ArrayList<>();
+
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(day);
+
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+        long start = cal.getTimeInMillis();
+
+        cal.set(Calendar.HOUR_OF_DAY, 23);
+        cal.set(Calendar.MINUTE, 59);
+        cal.set(Calendar.SECOND, 59);
+        cal.set(Calendar.MILLISECOND, 999);
+        long end = cal.getTimeInMillis();
+
+        String sql = "SELECT app.appointment_id, app.date, app.problem, app.status, " +
+                "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
+                "client.name, client.phone " +
+                "FROM Appointments app " +
+                "JOIN Cars car ON app.car_id = car.car_id " +
+                "JOIN Clients client ON car.client_id = client.client_id " +
+                "WHERE app.date >= " + start + " AND app.date <= " + end;
+
+        return getAppointments(list, sql);
+    }
+
+    public static List<Appointment> getActiveAppointments() throws SQLException {
+        List<Appointment> list = new ArrayList<>();
+        String sql = "SELECT app.appointment_id, app.date, app.problem, app.status, " +
+                "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
+                "client.name, client.phone " +
+                "FROM Appointments app " +
+                "JOIN Cars car ON app.car_id = car.car_id " +
+                "JOIN Clients client ON car.client_id = client.client_id " +
+                "WHERE app.status = 'IN_PROGRESS'";
+
+        return getAppointments(list, sql);
+    }
+
+    private static List<Appointment> getAppointments(List<Appointment> list, String sql) throws SQLException {
+        try (Connection conn = connect();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+
+            while (rs.next()) {
+                Appointment appt = new Appointment(
+                        rs.getInt("appointment_id"),
+                        rs.getInt("car_id"),
+                        new Date(rs.getLong("date")),
+                        rs.getString("problem"),
+                        AppointmentStatus.valueOf(rs.getString("status")),
+                        rs.getString("name"),
+                        rs.getString("phone"),
+                        rs.getString("license_plate"),
+                        rs.getString("brand_name"),
+                        rs.getString("model"),
+                        rs.getInt("year"),
+                        rs.getString("photo_path")
+                );
+                list.add(appt);
+            }
+        }
+        return list;
+    }
+
+    // AUTOMATION: Auto-start appointments if time has passed
+    public static void autoUpdateStatuses() throws SQLException {
+        long now = System.currentTimeMillis();
+
+        // SQL: Set status to IN_PROGRESS
+        // WHERE the date is in the past (<= now)
+        // AND the status is currently 'SCHEDULED' (Don't touch DONE or CANCELLED jobs)
+        String sql = "UPDATE Appointments SET status = 'IN_PROGRESS' WHERE date <= ? AND status = 'SCHEDULED'";
+
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql)) {
+
+            pstmt.setLong(1, now);
+            int rowsUpdated = pstmt.executeUpdate();
+
+            if (rowsUpdated > 0) {
+                System.out.println("Auto-updated " + rowsUpdated + " appointments to IN_PROGRESS.");
             }
         }
     }

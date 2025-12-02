@@ -8,7 +8,7 @@ public class Appointment {
     private int carID;
     private Date date;
     private String problemDescription;
-    private String status;
+    private AppointmentStatus status;
 
     // UI Display Fields (Transient)
     private String clientName;
@@ -20,21 +20,21 @@ public class Appointment {
     private String carPhotoPath;  // NEW
 
     // Constructor for LOADING (Full data)
-    public Appointment(int appointmentID, int carID, Date date, String problemDescription, String status,
+    public Appointment(int appointmentID, int carID, Date date, String problemDescription,
                        String clientName, String clientPhone, String carLicensePlate, String carBrand, String carModel,
-                       int carYear, String carPhotoPath) { // Added args
+                       int carYear, String carPhotoPath) {
         this.appointmentID = appointmentID;
         this.carID = carID;
         this.date = date;
         this.problemDescription = problemDescription;
-        this.status = status;
+        this.status  = AppointmentStatus.SCHEDULED;
         this.clientName = clientName;
         this.clientPhone = clientPhone;
         this.carLicensePlate = carLicensePlate;
         this.carBrand = carBrand;
         this.carModel = carModel;
-        this.carYear = carYear;          // NEW
-        this.carPhotoPath = carPhotoPath;// NEW
+        this.carYear = carYear;
+        this.carPhotoPath = carPhotoPath;
     }
 
     // Constructor for CREATING (UI Input)
@@ -45,11 +45,27 @@ public class Appointment {
         this.carLicensePlate = carLicensePlate;
         this.carBrand = carBrand;
         this.carModel = carModel;
-        this.carYear = carYear;          // NEW
-        this.carPhotoPath = carPhotoPath;// NEW
+        this.carYear = carYear;
+        this.carPhotoPath = carPhotoPath;
         this.date = date;
         this.problemDescription = problemDescription;
-        this.status = "Scheduled";
+        this.status = AppointmentStatus.SCHEDULED;
+    }
+
+    // Constructor with status, for getting appointments from database
+    public Appointment(int appointmentId, int carId, java.sql.Date date, String problem, AppointmentStatus status, String name, String phone, String licensePlate, String brandName, String model, int year, String photoPath) {
+        this.appointmentID = appointmentId;
+        this.carID = carId;
+        this.date = date;
+        this.problemDescription = problem;
+        this.status = status;
+        this.clientName = name;
+        this.clientPhone = phone;
+        this.carLicensePlate = licensePlate;
+        this.carBrand = brandName;
+        this.carModel = model;
+        this.carYear = year;
+        this.carPhotoPath = photoPath;
     }
 
     // Getters & Setters
@@ -57,7 +73,7 @@ public class Appointment {
     public int getCarID() { return carID; }
     public Date getDate() { return date; }
     public String getProblemDescription() { return problemDescription; }
-    public String getStatus() { return status; }
+    public AppointmentStatus getStatus() { return status; }
     public String getClientName() { return clientName; }
     public String getClientPhone() { return clientPhone; }
     public String getCarLicensePlate() { return carLicensePlate; }
@@ -71,7 +87,7 @@ public class Appointment {
     // Setters
     public void setDate(Date date) { this.date = date; }
     public void setProblemDescription(String s) { this.problemDescription = s; }
-    public void setStatus(String s) { this.status = s; }
+    public void setStatus(AppointmentStatus s) { this.status = s; }
     public void setClientName(String s) { this.clientName = s; }
     public void setClientPhone(String s) { this.clientPhone = s; }
     public void setCarLicensePlate(String s) { this.carLicensePlate = s; }
