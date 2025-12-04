@@ -58,6 +58,7 @@ public class AppointmentView extends JPanel {
 
         // 2. Start Logic
         setupListeners();
+        setUpShortcuts();
         loadDataFromDB();
         clearInputs();
 
@@ -136,7 +137,7 @@ public class AppointmentView extends JPanel {
         String[] columns = {"Client Name", "Phone", "License Plate", "Brand", "Model", "Year", "Date", "Description", "Status"};
         tableModel = new DefaultTableModel(columns, 0);
         table = new JTable(tableModel);
-
+        table.putClientProperty("JTable.autoStartsEdit", Boolean.FALSE);
         table.setRowHeight(35);
         table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 16));
         table.setFont(inputFont);
@@ -547,5 +548,52 @@ public class AppointmentView extends JPanel {
 
         // 3. Focus Name field for instant typing
         nameField.requestFocus();
+    }
+
+    private void setUpShortcuts(){
+        InputMap inputMap = this.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = this.getActionMap();
+
+        // 1. Define the Key Strokes
+        KeyStroke addKey = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_S, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        KeyStroke clearKey = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_R, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        KeyStroke updateKey = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_E, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+        KeyStroke deleteKey = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_DELETE, 0);
+
+        // 2. Map Keys to Action Names
+        inputMap.put(addKey, "addAppointment");
+        inputMap.put(clearKey, "clearFields");
+        inputMap.put(updateKey, "updateAppointment");
+        inputMap.put(deleteKey, "deleteAppointment");
+
+        // 3. Map Action Names to Actual Logic
+        actionMap.put("addAppointment", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                // Visual feedback: click the button programmatically so it flashes
+                if (addButton.isEnabled()) addButton.doClick();
+            }
+        });
+
+        actionMap.put("clearFields", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (clearButton.isEnabled()) clearButton.doClick();
+            }
+        });
+
+        actionMap.put("updateAppointment", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (updateButton.isEnabled()) updateButton.doClick();
+            }
+        });
+
+        actionMap.put("deleteAppointment", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e) {
+                if (deleteButton.isEnabled()) deleteButton.doClick();
+            }
+        });
     }
 }

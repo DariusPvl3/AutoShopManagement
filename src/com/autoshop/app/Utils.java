@@ -1,6 +1,8 @@
 package com.autoshop.app;
 
 import javax.swing.*;
+import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -86,5 +88,13 @@ public class Utils {
         d.setTime(date);
         return t.get(java.util.Calendar.YEAR) == d.get(java.util.Calendar.YEAR) &&
                 t.get(java.util.Calendar.DAY_OF_YEAR) == d.get(java.util.Calendar.DAY_OF_YEAR);
+    }
+
+    public static void copyFile(File source, File dest) throws java.io.IOException {
+        java.nio.file.Files.copy(source.toPath(), dest.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+    }
+
+    public static String getCurrentTimeStamp(){
+        return new SimpleDateFormat("yyyy-MM-dd_HH-mm").format(new Date());
     }
 }

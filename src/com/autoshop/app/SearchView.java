@@ -19,6 +19,8 @@ public class SearchView extends JPanel {
     private final JDateChooser dateTo;
     private final JTable resultsTable;
     private final JComboBox<Object> statusFilterBox;
+    private JButton searchButton;
+    private JButton resetButton;
     private final DefaultTableModel tableModel;
     private final ArrayList<Appointment> resultsList = new ArrayList<>();
     private Consumer<Integer> onJumpRequest;
@@ -48,11 +50,11 @@ public class SearchView extends JPanel {
         dateTo.setPreferredSize(new Dimension(130, 30));
         CalendarCustomizer.styleDateChooser(dateTo);
 
-        JButton searchBtn = new RoundedButton("Search");
-        ButtonStyler.apply(searchBtn, new Color(52, 152, 219)); // Blue
+        searchButton = new RoundedButton("Search");
+        ButtonStyler.apply(searchButton, new Color(52, 152, 219)); // Blue
 
-        JButton resetBtn = new RoundedButton("Reset");
-        ButtonStyler.apply(resetBtn, new Color(149, 165, 166)); // Grey
+        resetButton = new RoundedButton("Reset");
+        ButtonStyler.apply(resetButton, new Color(149, 165, 166)); // Grey
 
         filterPanel.add(new JLabel("Keyword:"));
         filterPanel.add(searchField);
@@ -62,8 +64,8 @@ public class SearchView extends JPanel {
         filterPanel.add(dateFrom);
         filterPanel.add(new JLabel("To:"));
         filterPanel.add(dateTo);
-        filterPanel.add(searchBtn);
-        filterPanel.add(resetBtn);
+        filterPanel.add(searchButton);
+        filterPanel.add(resetButton);
 
         add(filterPanel, BorderLayout.NORTH);
 
@@ -98,11 +100,11 @@ public class SearchView extends JPanel {
         add(new JScrollPane(resultsTable), BorderLayout.CENTER);
 
         // --- 3. LISTENERS ---
-        searchBtn.addActionListener(_ -> performSearch());
+        searchButton.addActionListener(_ -> performSearch());
 
         searchField.addActionListener(_ -> performSearch());
 
-        resetBtn.addActionListener(_ -> {
+        resetButton.addActionListener(_ -> {
             searchField.setText("");
             statusFilterBox.setSelectedIndex(0);
             dateFrom.setDate(null);
@@ -110,6 +112,8 @@ public class SearchView extends JPanel {
             resultsList.clear();
             refreshTable();
         });
+
+        setUpShortcuts();
     }
 
     public void setOnJumpRequest(Consumer<Integer> callback) {
@@ -163,5 +167,33 @@ public class SearchView extends JPanel {
                     appointment.getStatus()
             });
         }
+    }
+
+    private void setUpShortcuts(){
+        InputMap inputMap = this.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = this.getActionMap();
+
+        // 1. Define Key Strokes
+        KeyStroke searchKey = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ENTER, 0);
+        KeyStroke clearKey = KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_R, java.awt.event.InputEvent.CTRL_DOWN_MASK);
+
+        // 2. Map Keys to Action Names
+        inputMap.put(searchKey, "searchAppointments");
+        inputMap.put(clearKey, "clearFields");
+
+        // 3. Map Action to actual logic
+        actionMap.put("searchAppointments", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e){
+                if(searchButton.isEnabled()) searchButton.doClick();
+            }
+        });
+
+        actionMap.put("clearFields", new AbstractAction() {
+            @Override
+            public void actionPerformed(java.awt.event.ActionEvent e){
+                if(resetButton.isEnabled()) resetButton.doClick();
+            }
+        });
     }
 }

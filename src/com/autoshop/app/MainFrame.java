@@ -8,7 +8,7 @@ public class MainFrame extends JFrame {
     private final JPanel mainPanel;
 
     public MainFrame() {
-        setTitle("AutoShop Scheduler V1.2");
+        setTitle("AutoShop Scheduler V1.3.1");
         setSize(1200, 800);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -19,10 +19,12 @@ public class MainFrame extends JFrame {
         DashboardView dashboardView = new DashboardView();
         AppointmentView appointmentView = new AppointmentView();
         SearchView searchView = new SearchView();
+        SettingsView settingsView = new SettingsView();
 
         mainPanel.add(dashboardView, "HOME");
         mainPanel.add(appointmentView, "APPOINTMENTS");
         mainPanel.add(searchView, "SEARCH");
+        mainPanel.add(settingsView, "SETTINGS");
 
         JPanel menuPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
         JButton homeButton = new JButton("Home");
@@ -38,7 +40,7 @@ public class MainFrame extends JFrame {
         homeButton.addActionListener(_ -> cardLayout.show(mainPanel, "HOME"));
         appointmentButton.addActionListener(_ -> cardLayout.show(mainPanel, "APPOINTMENTS"));
         searchButton.addActionListener(_ -> cardLayout.show(mainPanel, "SEARCH"));
-        settingsButton.addActionListener(_ -> JOptionPane.showMessageDialog(this, "Settings coming in V1.3!"));
+        settingsButton.addActionListener(_ -> cardLayout.show(mainPanel, "SETTINGS"));
 
         // --- CROSS-VIEW WIRING ---
 
