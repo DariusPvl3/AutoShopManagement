@@ -9,9 +9,7 @@ public class StatusCellRenderer extends DefaultTableCellRenderer {
     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
         Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
-        if (value instanceof AppointmentStatus) {
-            AppointmentStatus status = (AppointmentStatus) value;
-
+        if (value instanceof AppointmentStatus status) {
             // 1. Set the Text Color
             if (isSelected) {
                 c.setForeground(Color.WHITE);

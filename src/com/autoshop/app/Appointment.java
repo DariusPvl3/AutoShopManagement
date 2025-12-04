@@ -19,24 +19,6 @@ public class Appointment {
     private int carYear;          // NEW
     private String carPhotoPath;  // NEW
 
-    // Constructor for LOADING (Full data)
-    public Appointment(int appointmentID, int carID, Date date, String problemDescription,
-                       String clientName, String clientPhone, String carLicensePlate, String carBrand, String carModel,
-                       int carYear, String carPhotoPath) {
-        this.appointmentID = appointmentID;
-        this.carID = carID;
-        this.date = date;
-        this.problemDescription = problemDescription;
-        this.status  = AppointmentStatus.SCHEDULED;
-        this.clientName = clientName;
-        this.clientPhone = clientPhone;
-        this.carLicensePlate = carLicensePlate;
-        this.carBrand = carBrand;
-        this.carModel = carModel;
-        this.carYear = carYear;
-        this.carPhotoPath = carPhotoPath;
-    }
-
     // Constructor for CREATING (UI Input)
     public Appointment(String clientName, String clientPhone, String carLicensePlate, String carBrand, String carModel,
                        int carYear, String carPhotoPath, Date date, String problemDescription) {

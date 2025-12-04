@@ -13,7 +13,9 @@ import java.text.SimpleDateFormat;
 import java.util.*;
 
 public class AppointmentView extends JPanel {
-    private ArrayList<Appointment> appointmentList = new ArrayList<>();
+    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(AppointmentView.class.getName());
+
+    private final ArrayList<Appointment> appointmentList = new ArrayList<>();
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 
     private DefaultTableModel tableModel;
@@ -169,27 +171,27 @@ public class AppointmentView extends JPanel {
         carPanel.add(new JLabel("Car registration:"));
         carPanel.add(photoPanel);
 
-        JPanel apptPanel = createStyledPanel("Appointment Info");
+        JPanel appointmentPanel = createStyledPanel("Appointment Info");
         JPanel dateTimePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         dateTimePanel.add(dateChooser);
         dateTimePanel.add(new JLabel("  at  "));
         dateTimePanel.add(timeSpinner);
 
-        apptPanel.add(new JLabel("Date & Time:"));
-        apptPanel.add(dateTimePanel);
-        apptPanel.add(Box.createVerticalStrut(5));
-        apptPanel.add(new JLabel("Problem:"));
-        apptPanel.add(problemDescriptionField);
-        apptPanel.add(Box.createVerticalStrut(10));
+        appointmentPanel.add(new JLabel("Date & Time:"));
+        appointmentPanel.add(dateTimePanel);
+        appointmentPanel.add(Box.createVerticalStrut(5));
+        appointmentPanel.add(new JLabel("Problem:"));
+        appointmentPanel.add(problemDescriptionField);
+        appointmentPanel.add(Box.createVerticalStrut(10));
 
         JPanel buttonContainer = new JPanel(new GridLayout(1, 2, 10, 0));
         buttonContainer.add(addButton);
         buttonContainer.add(clearButton);
-        apptPanel.add(buttonContainer);
+        appointmentPanel.add(buttonContainer);
 
         mainPanel.add(clientPanel);
         mainPanel.add(carPanel);
-        mainPanel.add(apptPanel);
+        mainPanel.add(appointmentPanel);
 
         return mainPanel;
     }
@@ -228,14 +230,14 @@ public class AppointmentView extends JPanel {
 
     // --- LOGIC & LISTENERS ---
     private void setupListeners() {
-        addButton.addActionListener(e -> addAppointment());
-        clearButton.addActionListener(e -> clearInputs());
-        deleteButton.addActionListener(e -> deleteAppointment());
-        updateButton.addActionListener(e -> updateAppointment());
+        addButton.addActionListener(_ -> addAppointment());
+        clearButton.addActionListener(_ -> clearInputs());
+        deleteButton.addActionListener(_ -> deleteAppointment());
+        updateButton.addActionListener(_ -> updateAppointment());
 
         StatusMenuHelper.attach(table, appointmentList, this::loadDataFromDB, this);
 
-        selectPhotoButton.addActionListener(e -> {
+        selectPhotoButton.addActionListener(_ -> {
             JFileChooser chooser = new JFileChooser();
             chooser.setFileFilter(new FileNameExtensionFilter("Images",  "jpg", "png", "jpeg"));
             int result = chooser.showOpenDialog(this);
@@ -274,23 +276,23 @@ public class AppointmentView extends JPanel {
 
         if (nameField.getText().isEmpty() || dateChooser.getDate() == null) {
             JOptionPane.showMessageDialog(this, "Client Name and Date are required!", "Error", JOptionPane.ERROR_MESSAGE);
-            return false;
+            return true;
         }
 
         if (!Utils.isValidPhone(phoneField.getText())) {
             JOptionPane.showMessageDialog(this, "Invalid Phone Number!", "Error", JOptionPane.ERROR_MESSAGE);
-            return false;
+            return true;
         }
 
         if (!carLicensePlateField.getText().matches("^[A-Z]{1,2}-[0-9]{2,3}-[A-Z]{3}$")) {
             JOptionPane.showMessageDialog(this, "Invalid License Plate!\nFormat required: TM-12-ABC", "Error", JOptionPane.ERROR_MESSAGE);
-            return false;
+            return true;
         }
-        return true;
+        return false;
     }
 
     private void addAppointment() {
-        if (!validateAndFormatInput()) return;
+        if (validateAndFormatInput()) return;
 
         String name = nameField.getText();
         String phone = phoneField.getText();
@@ -322,15 +324,15 @@ public class AppointmentView extends JPanel {
             return;
         }
 
-        Appointment newAppt = new Appointment(name, phone, plate, brand, model, year, carRegPhoto, finalDate, desc);
+        Appointment newAppointment = new Appointment(name, phone, plate, brand, model, year, carRegPhoto, finalDate, desc);
 
         try {
-            DatabaseHelper.addAppointmentTransaction(newAppt);
+            DatabaseHelper.addAppointmentTransaction(newAppointment);
             loadDataFromDB();
             clearInputs();
             JOptionPane.showMessageDialog(this, "Appointment Scheduled!");
         } catch (SQLException e) {
-            e.printStackTrace();
+            LOGGER.log(java.util.logging.Level.SEVERE, "Error adding appointment", e);
             JOptionPane.showMessageDialog(this, "Database Error: " + e.getMessage());
         }
     }
@@ -343,25 +345,25 @@ public class AppointmentView extends JPanel {
             return;
         }
 
-        if (!validateAndFormatInput()) return;
+        if (validateAndFormatInput()) return;
 
-        Appointment currentAppt = appointmentList.get(selectedRow);
+        Appointment currentAppointment = appointmentList.get(selectedRow);
 
-        currentAppt.setClientName(nameField.getText());
-        currentAppt.setClientPhone(phoneField.getText());
-        currentAppt.setCarLicensePlate(carLicensePlateField.getText());
-        currentAppt.setCarBrand((String) carBrandBox.getSelectedItem());
-        currentAppt.setCarModel(carModelField.getText());
-        currentAppt.setDate(Utils.combineDateAndTime(dateChooser.getDate(), (Date) timeSpinner.getValue()));
-        currentAppt.setProblemDescription(problemDescriptionField.getText());
-
-        try {
-            currentAppt.setCarYear(Integer.parseInt(carYearField.getText().trim()));
-        } catch(Exception e) {}
-        currentAppt.setCarPhotoPath(currentPhotoPath);
+        currentAppointment.setClientName(nameField.getText());
+        currentAppointment.setClientPhone(phoneField.getText());
+        currentAppointment.setCarLicensePlate(carLicensePlateField.getText());
+        currentAppointment.setCarBrand((String) carBrandBox.getSelectedItem());
+        currentAppointment.setCarModel(carModelField.getText());
+        currentAppointment.setDate(Utils.combineDateAndTime(dateChooser.getDate(), (Date) timeSpinner.getValue()));
+        currentAppointment.setProblemDescription(problemDescriptionField.getText());
 
         try {
-            DatabaseHelper.updateAppointmentTransaction(currentAppt);
+            currentAppointment.setCarYear(Integer.parseInt(carYearField.getText().trim()));
+        } catch(Exception _) {}
+        currentAppointment.setCarPhotoPath(currentPhotoPath);
+
+        try {
+            DatabaseHelper.updateAppointmentTransaction(currentAppointment);
             loadDataFromDB();
             clearInputs();
             JOptionPane.showMessageDialog(this, "Updated Successfully!");
@@ -380,8 +382,8 @@ public class AppointmentView extends JPanel {
         int response = JOptionPane.showConfirmDialog(this, "Delete this appointment?", "Confirm", JOptionPane.YES_NO_OPTION);
         if (response == JOptionPane.YES_OPTION) {
             try {
-                Appointment appt = appointmentList.get(selectedRow);
-                DatabaseHelper.deleteAppointment(appt.getAppointmentID());
+                Appointment appointment = appointmentList.get(selectedRow);
+                DatabaseHelper.deleteAppointment(appointment.getAppointmentID());
                 loadDataFromDB();
                 clearInputs();
             } catch (SQLException e) {
@@ -414,28 +416,28 @@ public class AppointmentView extends JPanel {
 
             appointmentList.clear();
             appointmentList.addAll(DatabaseHelper.getAllAppointments());
-            appointmentList.sort((a, b) -> a.getDate().compareTo(b.getDate()));
+            appointmentList.sort(Comparator.comparing(Appointment::getDate));
             refreshTable();
-        } catch (Exception e) {
-            e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Error loading database: " + e.getMessage());
+        } catch (SQLException e) {
+            LOGGER.log(java.util.logging.Level.SEVERE, "Error adding appointment", e);
+            JOptionPane.showMessageDialog(this, "Database Error: " + e.getMessage());
         }
     }
 
     private void refreshTable() {
-        Collections.sort(appointmentList, Comparator.comparing(Appointment::getDate));
+        appointmentList.sort(Comparator.comparing(Appointment::getDate));
         tableModel.setRowCount(0);
-        for (Appointment appt : appointmentList) {
+        for (Appointment appointment : appointmentList) {
             tableModel.addRow(new Object[]{
-                    appt.getClientName(),
-                    appt.getClientPhone(),
-                    appt.getCarLicensePlate(),
-                    appt.getCarBrand(),
-                    appt.getCarModel(),
-                    appt.getCarYear(),
-                    dateFormat.format(appt.getDate()),
-                    appt.getProblemDescription(),
-                    appt.getStatus()
+                    appointment.getClientName(),
+                    appointment.getClientPhone(),
+                    appointment.getCarLicensePlate(),
+                    appointment.getCarBrand(),
+                    appointment.getCarModel(),
+                    appointment.getCarYear(),
+                    dateFormat.format(appointment.getDate()),
+                    appointment.getProblemDescription(),
+                    appointment.getStatus()
             });
         }
     }
@@ -461,41 +463,41 @@ public class AppointmentView extends JPanel {
         problemDescriptionField.getDocument().addDocumentListener(docListener);
         ((JTextField) carBrandBox.getEditor().getEditorComponent()).getDocument().addDocumentListener(docListener);
 
-        carBrandBox.addActionListener(e -> enableUpdate.run());
-        dateChooser.addPropertyChangeListener("date", e -> enableUpdate.run());
-        timeSpinner.addChangeListener(e -> enableUpdate.run());
+        carBrandBox.addActionListener(_ -> enableUpdate.run());
+        dateChooser.addPropertyChangeListener("date", _ -> enableUpdate.run());
+        timeSpinner.addChangeListener(_ -> enableUpdate.run());
     }
 
     private void loadAppointmentToForm(int rowIndex) {
-        Appointment appt = appointmentList.get(rowIndex);
+        Appointment appointment = appointmentList.get(rowIndex);
         updateButton.setEnabled(false);
 
-        nameField.setText(appt.getClientName());
-        phoneField.setText(appt.getClientPhone());
-        carLicensePlateField.setText(appt.getCarLicensePlate());
-        carBrandBox.setSelectedItem(appt.getCarBrand());
-        carModelField.setText(appt.getCarModel());
-        carYearField.setText(String.valueOf(appt.getCarYear()));
-        currentPhotoPath = appt.getCarPhotoPath();
+        nameField.setText(appointment.getClientName());
+        phoneField.setText(appointment.getClientPhone());
+        carLicensePlateField.setText(appointment.getCarLicensePlate());
+        carBrandBox.setSelectedItem(appointment.getCarBrand());
+        carModelField.setText(appointment.getCarModel());
+        carYearField.setText(String.valueOf(appointment.getCarYear()));
+        currentPhotoPath = appointment.getCarPhotoPath();
         if (currentPhotoPath != null && !currentPhotoPath.isEmpty()) {
             photoLabel.setText(new File(currentPhotoPath).getName());
         } else {
             photoLabel.setText("No Photo");
         }
 
-        problemDescriptionField.setText(appt.getProblemDescription());
-        dateChooser.setDate(appt.getDate());
-        timeSpinner.setValue(appt.getDate());
+        problemDescriptionField.setText(appointment.getProblemDescription());
+        dateChooser.setDate(appointment.getDate());
+        timeSpinner.setValue(appointment.getDate());
     }
 
     private int findDuplicateRow(String phone, String carLicensePlate, Date date, String problemDescription) {
         int row = -1;
         for (int i = 0; i < appointmentList.size(); i++) {
-            Appointment appt = appointmentList.get(i);
-            if (appt.getClientPhone().equals(phone) &&
-                    appt.getCarLicensePlate().equals(carLicensePlate) &&
-                    dateFormat.format(appt.getDate()).equals(dateFormat.format(date)) &&
-                    appt.getProblemDescription().equals(problemDescription)) {
+            Appointment appointment = appointmentList.get(i);
+            if (appointment.getClientPhone().equals(phone) &&
+                    appointment.getCarLicensePlate().equals(carLicensePlate) &&
+                    dateFormat.format(appointment.getDate()).equals(dateFormat.format(date)) &&
+                    appointment.getProblemDescription().equals(problemDescription)) {
                 row = i;
                 break;
             }
@@ -504,18 +506,21 @@ public class AppointmentView extends JPanel {
     }
 
     // Public method so MainFrame can call it
-    public void selectAppointmentById(int apptId) {
+    public void selectAppointmentById(int appointmentId) {
         // 1. Force Reload (Sync with DB)
         try {
             appointmentList.clear();
             appointmentList.addAll(DatabaseHelper.getAllAppointments());
             refreshTable();
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            LOGGER.log(java.util.logging.Level.SEVERE, "Error adding appointment", e);
+            JOptionPane.showMessageDialog(this, "Database Error: " + e.getMessage());
+        }
 
         // 2. Find and Select
         SwingUtilities.invokeLater(() -> {
             for (int i = 0; i < appointmentList.size(); i++) {
-                if (appointmentList.get(i).getAppointmentID() == apptId) {
+                if (appointmentList.get(i).getAppointmentID() == appointmentId) {
                     // Highlight the row
                     table.setRowSelectionInterval(i, i);
                     table.scrollRectToVisible(table.getCellRect(i, 0, true));
@@ -524,7 +529,7 @@ public class AppointmentView extends JPanel {
                     return;
                 }
             }
-            JOptionPane.showMessageDialog(this, "Appointment not found (ID " + apptId + ")");
+            JOptionPane.showMessageDialog(this, "Appointment not found (ID " + appointmentId + ")");
         });
     }
 

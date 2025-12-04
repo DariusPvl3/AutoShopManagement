@@ -14,13 +14,13 @@ import java.util.function.Consumer;
 
 public class SearchView extends JPanel {
 
-    private JTextField searchField;
-    private JDateChooser dateFrom;
-    private JDateChooser dateTo;
-    private JTable resultsTable;
-    private JComboBox<Object> statusFilterBox;
-    private DefaultTableModel tableModel;
-    private ArrayList<Appointment> resultsList = new ArrayList<>();
+    private final JTextField searchField;
+    private final JDateChooser dateFrom;
+    private final JDateChooser dateTo;
+    private final JTable resultsTable;
+    private final JComboBox<Object> statusFilterBox;
+    private final DefaultTableModel tableModel;
+    private final ArrayList<Appointment> resultsList = new ArrayList<>();
     private Consumer<Integer> onJumpRequest;
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 
@@ -98,11 +98,11 @@ public class SearchView extends JPanel {
         add(new JScrollPane(resultsTable), BorderLayout.CENTER);
 
         // --- 3. LISTENERS ---
-        searchBtn.addActionListener(e -> performSearch());
+        searchBtn.addActionListener(_ -> performSearch());
 
-        searchField.addActionListener(e -> performSearch());
+        searchField.addActionListener(_ -> performSearch());
 
-        resetBtn.addActionListener(e -> {
+        resetBtn.addActionListener(_ -> {
             searchField.setText("");
             statusFilterBox.setSelectedIndex(0);
             dateFrom.setDate(null);
@@ -150,17 +150,17 @@ public class SearchView extends JPanel {
 
     private void refreshTable() {
         tableModel.setRowCount(0);
-        for (Appointment appt : resultsList) {
+        for (Appointment appointment : resultsList) {
             tableModel.addRow(new Object[]{
-                    appt.getClientName(),
-                    appt.getClientPhone(),
-                    appt.getCarLicensePlate(),
-                    appt.getCarBrand(),
-                    appt.getCarModel(),
-                    appt.getCarYear(),
-                    dateFormat.format(appt.getDate()),
-                    appt.getProblemDescription(),
-                    appt.getStatus()
+                    appointment.getClientName(),
+                    appointment.getClientPhone(),
+                    appointment.getCarLicensePlate(),
+                    appointment.getCarBrand(),
+                    appointment.getCarModel(),
+                    appointment.getCarYear(),
+                    dateFormat.format(appointment.getDate()),
+                    appointment.getProblemDescription(),
+                    appointment.getStatus()
             });
         }
     }

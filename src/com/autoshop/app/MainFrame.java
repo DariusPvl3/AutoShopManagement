@@ -4,8 +4,8 @@ import javax.swing.*;
 import java.awt.*;
 
 public class MainFrame extends JFrame {
-    private CardLayout cardLayout;
-    private JPanel mainPanel;
+    private final CardLayout cardLayout;
+    private final JPanel mainPanel;
 
     public MainFrame() {
         setTitle("AutoShop Scheduler V1.2");
@@ -35,10 +35,10 @@ public class MainFrame extends JFrame {
         styleMenuButton(searchButton);
         styleMenuButton(settingsButton);
 
-        homeButton.addActionListener(e -> cardLayout.show(mainPanel, "HOME"));
-        appointmentButton.addActionListener(e -> cardLayout.show(mainPanel, "APPOINTMENTS"));
-        searchButton.addActionListener(e -> cardLayout.show(mainPanel, "SEARCH"));
-        settingsButton.addActionListener(e -> JOptionPane.showMessageDialog(this, "Settings coming in V1.3!"));
+        homeButton.addActionListener(_ -> cardLayout.show(mainPanel, "HOME"));
+        appointmentButton.addActionListener(_ -> cardLayout.show(mainPanel, "APPOINTMENTS"));
+        searchButton.addActionListener(_ -> cardLayout.show(mainPanel, "SEARCH"));
+        settingsButton.addActionListener(_ -> JOptionPane.showMessageDialog(this, "Settings coming in V1.3!"));
 
         // --- CROSS-VIEW WIRING ---
 

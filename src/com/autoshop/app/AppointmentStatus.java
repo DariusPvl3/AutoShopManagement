@@ -22,6 +22,6 @@ public enum AppointmentStatus {
     @Override
     public String toString() {
         String s = super.toString();
-        return s.substring(0, 1) + s.substring(1).toLowerCase().replace("_", " ");
+        return s.charAt(0) + s.substring(1).toLowerCase().replace("_", " ");
     }
 }

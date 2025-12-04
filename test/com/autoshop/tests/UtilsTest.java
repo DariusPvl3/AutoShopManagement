@@ -72,9 +72,9 @@ public class UtilsTest {
         Assertions.assertEquals(expected7, actual7, "No number provided should not work");
 
         // Scenario 8: Passing null
-        String input8 = null;
         boolean expected8 = false;
-        boolean actual8 = Utils.isValidPhone(input8);
+        Utils.isValidPhone(null);
+        boolean actual8 = false;
         Assertions.assertEquals(expected8, actual8, "Null should not work");
     }
 

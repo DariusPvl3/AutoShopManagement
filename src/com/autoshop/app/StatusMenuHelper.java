@@ -18,14 +18,14 @@ public class StatusMenuHelper {
             // --- THE COLOR MAGIC ---
             item.setForeground(status.getColor());
             item.setFont(new Font("SansSerif", Font.BOLD, 12));
-            item.addActionListener(e -> {
+            item.addActionListener(_ -> {
                 int selectedRow = table.getSelectedRow();
                 if (selectedRow == -1) return;
 
                 try {
-                    Appointment appt = appointmentList.get(selectedRow);
-                    appt.setStatus(status); // Update Object
-                    DatabaseHelper.updateAppointmentTransaction(appt); // Update DB
+                    Appointment appointment = appointmentList.get(selectedRow);
+                    appointment.setStatus(status); // Update Object
+                    DatabaseHelper.updateAppointmentTransaction(appointment); // Update DB
                     onRefresh.run(); // Refresh UI
                 } catch (SQLException ex) {
                     JOptionPane.showMessageDialog(parent, "Error: " + ex.getMessage());

@@ -4,17 +4,21 @@ import com.toedter.calendar.JCalendar;
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.Date;
 import java.util.function.Consumer;
 
 public class DashboardView extends JPanel {
-    private ArrayList<Appointment> appointmentList = new ArrayList<>();
-    private DefaultTableModel tableModel;
-    private JLabel appointmentsTodayLabel = new JLabel();
-    private JLabel activeLabel = new JLabel();
-    private JTable agendaTable = new JTable();
+    private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(DashboardView.class.getName());
+
+    private final ArrayList<Appointment> appointmentList = new ArrayList<>();
+    private final DefaultTableModel tableModel;
+    private final JLabel appointmentsTodayLabel = new JLabel();
+    private final JLabel activeLabel = new JLabel();
+    private final JTable agendaTable = new JTable();
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 
     // Callbacks
@@ -24,7 +28,7 @@ public class DashboardView extends JPanel {
 
     // Cache
     private java.util.List<Appointment> calendarCache = new ArrayList<>();
-    private JCalendar calendar;
+    private final JCalendar calendar;
 
     public DashboardView() {
         this.setLayout(new BorderLayout(15, 15));
@@ -101,9 +105,7 @@ public class DashboardView extends JPanel {
         attachClickMenu();
 
         // Repaint Listener (Selection Border)
-        calendar.addPropertyChangeListener("calendar", e -> {
-            SwingUtilities.invokeLater(() -> CalendarCustomizer.paintDates(calendar));
-        });
+        calendar.addPropertyChangeListener("calendar", _ -> SwingUtilities.invokeLater(() -> CalendarCustomizer.paintDates(calendar)));
 
         calendarSection.add(calendar, BorderLayout.CENTER);
 
@@ -136,12 +138,12 @@ public class DashboardView extends JPanel {
         calendarMenu.add(createItem);
 
         // View Action
-        viewDayItem.addActionListener(e -> {
+        viewDayItem.addActionListener(_ -> {
             if (onSearchDateRequest != null) onSearchDateRequest.accept(calendar.getDate());
         });
 
         // Create Action
-        createItem.addActionListener(e -> {
+        createItem.addActionListener(_ -> {
             if (onCreateRequest != null) onCreateRequest.accept(calendar.getDate());
         });
 
@@ -156,8 +158,7 @@ public class DashboardView extends JPanel {
                 // Handle Left or Right Click
                 if (SwingUtilities.isLeftMouseButton(e) || e.isPopupTrigger()) {
                     Component c = e.getComponent();
-                    if (c instanceof JButton) {
-                        JButton dayBtn = (JButton) c;
+                    if (c instanceof JButton dayBtn) {
                         String text = dayBtn.getText();
                         if (text == null || !text.matches("\\d+")) return;
 
@@ -209,26 +210,29 @@ public class DashboardView extends JPanel {
             activeLabel.setText("Active: " + activeList.size());
 
             // Sorting logic
-            appointmentList.sort((a, b) -> a.getDate().compareTo(b.getDate()));
+            appointmentList.sort(Comparator.comparing(Appointment::getDate));
             refreshTable();
 
             // Cache for popup menu counting
             this.calendarCache = DatabaseHelper.getAllAppointments();
             SwingUtilities.invokeLater(() -> CalendarCustomizer.paintDates(calendar));
 
-        } catch (Exception e) { e.printStackTrace(); }
+        } catch (SQLException e) {
+            LOGGER.log(java.util.logging.Level.SEVERE, "Error adding appointment", e);
+            JOptionPane.showMessageDialog(this, "Database Error: " + e.getMessage());
+        }
     }
 
     private void refreshTable() {
         tableModel.setRowCount(0);
-        for (Appointment appt : appointmentList) {
+        for (Appointment appointment : appointmentList) {
             tableModel.addRow(new Object[]{
-                    appt.getClientName(),
-                    appt.getClientPhone(),
-                    appt.getCarLicensePlate(),
-                    appt.getCarBrand(),
-                    dateFormat.format(appt.getDate()),
-                    appt.getStatus()
+                    appointment.getClientName(),
+                    appointment.getClientPhone(),
+                    appointment.getCarLicensePlate(),
+                    appointment.getCarBrand(),
+                    dateFormat.format(appointment.getDate()),
+                    appointment.getStatus()
             });
         }
     }

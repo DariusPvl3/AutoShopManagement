@@ -16,7 +16,7 @@ public class CalendarCustomizer {
         Dimension spinnerSize = new Dimension(100, 35);
 
         // Style Header
-        JPanel monthPanel = (JPanel) calendar.getMonthChooser();
+        JPanel monthPanel = calendar.getMonthChooser();
         monthPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 25));
 
         JComboBox<?> monthCombo = (JComboBox<?>) calendar.getMonthChooser().getComboBox();
@@ -24,7 +24,7 @@ public class CalendarCustomizer {
         monthCombo.setPreferredSize(comboSize);
         ((JLabel)monthCombo.getRenderer()).setHorizontalAlignment(SwingConstants.CENTER);
 
-        JPanel yearPanel = (JPanel) calendar.getYearChooser();
+        JPanel yearPanel = calendar.getYearChooser();
         yearPanel.setPreferredSize(spinnerSize);
         JSpinner yearSpinner = (JSpinner) calendar.getYearChooser().getSpinner();
         yearSpinner.setFont(headerFont);
@@ -50,8 +50,7 @@ public class CalendarCustomizer {
         javax.swing.border.Border emptyBorder = BorderFactory.createEmptyBorder(2, 2, 2, 2);
 
         for (Component comp : dayPanel.getComponents()) {
-            if (comp instanceof JButton) {
-                JButton btn = (JButton) comp;
+            if (comp instanceof JButton btn) {
                 String text = btn.getText();
 
                 if (text == null || text.trim().isEmpty() || !text.matches("\\d+")) {
@@ -85,8 +84,7 @@ public class CalendarCustomizer {
 
     private static void styleSpinnerTextField(Container container, Font font) {
         for (Component comp : container.getComponents()) {
-            if (comp instanceof JTextField) {
-                JTextField tf = (JTextField) comp;
+            if (comp instanceof JTextField tf) {
                 tf.setFont(font);
                 tf.setHorizontalAlignment(SwingConstants.CENTER);
                 return;
@@ -101,8 +99,7 @@ public class CalendarCustomizer {
         dateChooser.setFont(font);
 
         for (Component comp : dateChooser.getComponents()) {
-            if (comp instanceof JButton) {
-                JButton btn = (JButton) comp;
+            if (comp instanceof JButton btn) {
                 btn.setPreferredSize(new Dimension(30, 25));
             }
         }

@@ -40,7 +40,7 @@ public class AutoCompletion {
                     comboBox.setModel(newModel);
                     textEditor.setText(currentText);
 
-                    if (filteredItems.size() > 0) {
+                    if (!filteredItems.isEmpty()) {
                         comboBox.showPopup();
                     } else {
                         comboBox.hidePopup();
