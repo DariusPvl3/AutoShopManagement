@@ -5,25 +5,17 @@ import javax.swing.*;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.io.File;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Date;
+import java.util.*;
 
-// CHANGE 1: We extend JPanel
 public class AppointmentView extends JPanel {
-
-    // --- 1. DATA (No more static) ---
     private ArrayList<Appointment> appointmentList = new ArrayList<>();
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
 
-    // --- 2. GUI COMPONENTS (No more static, No Frame) ---
     private DefaultTableModel tableModel;
     private JTable table;
 
@@ -47,25 +39,22 @@ public class AppointmentView extends JPanel {
     private JButton updateButton;
     private JButton deleteButton;
 
-    // --- CONSTRUCTOR (This replaces main and createAndShowGUI) ---
+    // --- CONSTRUCTOR ---
     public AppointmentView() {
-        // 1. Set the layout of THIS panel
         this.setLayout(new BorderLayout());
 
-        // 2. Initialize
         initializeComponents();
 
-        // 3. Build the sub-panels
+        // 1. Build the sub-panels
         JPanel topPanel = createInputPanel();
         JScrollPane centerPanel = createTablePanel();
         JPanel bottomPanel = createBottomPanel();
 
-        // 4. Add them to THIS panel (instead of frame.add)
         this.add(topPanel, BorderLayout.NORTH);
         this.add(centerPanel, BorderLayout.CENTER);
         this.add(bottomPanel, BorderLayout.SOUTH);
 
-        // 5. Start Logic
+        // 2. Start Logic
         setupListeners();
         loadDataFromDB();
         clearInputs();
@@ -80,7 +69,7 @@ public class AppointmentView extends JPanel {
 
     // --- COMPONENT INITIALIZATION ---
     private void initializeComponents() {
-        Font inputFont = new Font("SansSerif", Font.PLAIN, 14);
+        Font inputFont = new Font("SansSerif", Font.PLAIN, 16);
 
         nameField = new JTextField(12); nameField.setFont(inputFont);
         phoneField = new JTextField(12);  phoneField.setFont(inputFont);
@@ -89,9 +78,9 @@ public class AppointmentView extends JPanel {
         problemDescriptionField = new JTextField(12);  problemDescriptionField.setFont(inputFont);
 
         String[] carBrands = {"Audi", "BMW", "Chevrolet", "Citroen", "Dacia", "Fiat",
-                "Ford", "Honda", "Hyundai", "Kia", "Land Rover", "Mazda",
-                "Mercedes", "Mitsubishi", "Nissan", "Opel", "Peugeot",
-                "Renault", "Seat", "Skoda", "Suzuki", "Toyota",
+                "Ford", "Honda", "Hyundai", "Jeep", "Kia", "Land Rover", "Mazda",
+                "Mercedes", "Mitsubishi", "Mini", "Nissan", "Opel", "Peugeot",
+                "Renault", "Seat", "Skoda", "Suzuki", "Tesla", "Toyota",
                 "Volkswagen", "Volvo"};
 
         carBrandBox = new JComboBox<>(carBrands);
@@ -107,43 +96,47 @@ public class AppointmentView extends JPanel {
         dateChooser = new JDateChooser();
         dateChooser.setDate(new Date());
         dateChooser.setDateFormatString("dd/MM/yyyy");
-        dateChooser.setPreferredSize(new Dimension(130, 25));
+        dateChooser.setPreferredSize(new Dimension(130, 30));
+        CalendarCustomizer.styleDateChooser(dateChooser);
         dateChooser.setFont(inputFont);
 
-        timeSpinner = new JSpinner(new SpinnerDateModel());
+        SpinnerDateModel model = new SpinnerDateModel();
+        model.setCalendarField(Calendar.MINUTE);
+
+        timeSpinner = new JSpinner(model);
         JSpinner.DateEditor timeEditor = new JSpinner.DateEditor(timeSpinner, "HH:mm");
         timeSpinner.setEditor(timeEditor);
+
+        JFormattedTextField tf = ((JSpinner.DefaultEditor) timeSpinner.getEditor()).getTextField();
+        tf.setEditable(true);
+        tf.setHorizontalAlignment(JTextField.CENTER);
+        tf.setFont(inputFont);
+
         timeSpinner.setValue(new Date());
         timeSpinner.setPreferredSize(new Dimension(80, 25));
         timeSpinner.setFont(inputFont);
 
-        addButton = new JButton("Add Appointment");
-        addButton.setBackground(new Color(46, 204, 113));
-        addButton.setForeground(Color.WHITE);
-        addButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        Utils.addMouseScrollToSpinner(timeSpinner);
 
-        clearButton = new JButton("Clear");
-        clearButton.setBackground(new Color(149, 165, 166));
-        clearButton.setForeground(Color.WHITE);
-        clearButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        addButton = new RoundedButton("Add Appointment");
+        ButtonStyler.apply(addButton, new Color(46, 204, 113)); // Green
 
-        updateButton = new JButton("Update Appointment");
-        updateButton.setBackground(new Color(52, 152, 219));
-        updateButton.setForeground(Color.WHITE);
-        updateButton.setFont(new Font("SansSerif", Font.BOLD, 14));
-        updateButton.setEnabled(false);
+        clearButton = new RoundedButton("Clear");
+        ButtonStyler.apply(clearButton, new Color(149, 165, 166)); // Concrete Grey
 
-        deleteButton = new JButton("Delete Appointment");
-        deleteButton.setBackground(new Color(231, 76, 60));
-        deleteButton.setForeground(Color.WHITE);
-        deleteButton.setFont(new Font("SansSerif", Font.BOLD, 14));
+        updateButton = new RoundedButton("Update Appointment");
+        ButtonStyler.apply(updateButton, new Color(52, 152, 219)); // Blue
+        updateButton.setEnabled(false); // Keep disabled logic
+
+        deleteButton = new RoundedButton("Delete Appointment");
+        ButtonStyler.apply(deleteButton, new Color(231, 76, 60)); // Red
 
         String[] columns = {"Client Name", "Phone", "License Plate", "Brand", "Model", "Year", "Date", "Description", "Status"};
         tableModel = new DefaultTableModel(columns, 0);
         table = new JTable(tableModel);
 
-        table.setRowHeight(25);
-        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 14));
+        table.setRowHeight(35);
+        table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 16));
         table.setFont(inputFont);
         table.getColumnModel().getColumn(8).setCellRenderer(new StatusCellRenderer());
     }
@@ -233,7 +226,7 @@ public class AppointmentView extends JPanel {
         return panel;
     }
 
-    // --- LOGIC & LISTENERS (Removed 'static', replaced 'frame' with 'this') ---
+    // --- LOGIC & LISTENERS ---
     private void setupListeners() {
         addButton.addActionListener(e -> addAppointment());
         clearButton.addActionListener(e -> clearInputs());
@@ -245,7 +238,6 @@ public class AppointmentView extends JPanel {
         selectPhotoButton.addActionListener(e -> {
             JFileChooser chooser = new JFileChooser();
             chooser.setFileFilter(new FileNameExtensionFilter("Images",  "jpg", "png", "jpeg"));
-            // CHANGE: Use 'this' as parent
             int result = chooser.showOpenDialog(this);
             if(result == JFileChooser.APPROVE_OPTION) {
                 File selectedFile = chooser.getSelectedFile();
@@ -315,7 +307,7 @@ public class AppointmentView extends JPanel {
 
         String carRegPhoto = currentPhotoPath;
         String desc = problemDescriptionField.getText().replace(";", ",");
-        Date finalDate = getMergedDateFromInput();
+        Date finalDate = Utils.combineDateAndTime(dateChooser.getDate(), (Date) timeSpinner.getValue());
 
         if (finalDate.before(new Date())) {
             JOptionPane.showMessageDialog(this, "Cannot schedule in the past!", "Error", JOptionPane.ERROR_MESSAGE);
@@ -360,7 +352,7 @@ public class AppointmentView extends JPanel {
         currentAppt.setCarLicensePlate(carLicensePlateField.getText());
         currentAppt.setCarBrand((String) carBrandBox.getSelectedItem());
         currentAppt.setCarModel(carModelField.getText());
-        currentAppt.setDate(getMergedDateFromInput());
+        currentAppt.setDate(Utils.combineDateAndTime(dateChooser.getDate(), (Date) timeSpinner.getValue()));
         currentAppt.setProblemDescription(problemDescriptionField.getText());
 
         try {
@@ -446,9 +438,6 @@ public class AppointmentView extends JPanel {
                     appt.getStatus()
             });
         }
-        if (table.getRowCount() > 0) {
-            table.setRowSelectionInterval(0, 0);
-        }
     }
 
     private void addChangeListeners() {
@@ -499,12 +488,6 @@ public class AppointmentView extends JPanel {
         timeSpinner.setValue(appt.getDate());
     }
 
-    private Date getMergedDateFromInput() {
-        Date date = dateChooser.getDate();
-        Date time = (Date) timeSpinner.getValue();
-        return Utils.combineDateAndTime(date, time);
-    }
-
     private int findDuplicateRow(String phone, String carLicensePlate, Date date, String problemDescription) {
         int row = -1;
         for (int i = 0; i < appointmentList.size(); i++) {
@@ -518,5 +501,46 @@ public class AppointmentView extends JPanel {
             }
         }
         return row;
+    }
+
+    // Public method so MainFrame can call it
+    public void selectAppointmentById(int apptId) {
+        // 1. Force Reload (Sync with DB)
+        try {
+            appointmentList.clear();
+            appointmentList.addAll(DatabaseHelper.getAllAppointments());
+            refreshTable();
+        } catch (Exception e) { e.printStackTrace(); }
+
+        // 2. Find and Select
+        SwingUtilities.invokeLater(() -> {
+            for (int i = 0; i < appointmentList.size(); i++) {
+                if (appointmentList.get(i).getAppointmentID() == apptId) {
+                    // Highlight the row
+                    table.setRowSelectionInterval(i, i);
+                    table.scrollRectToVisible(table.getCellRect(i, 0, true));
+
+                    loadAppointmentToForm(i);
+                    return;
+                }
+            }
+            JOptionPane.showMessageDialog(this, "Appointment not found (ID " + apptId + ")");
+        });
+    }
+
+    public void prepareNewAppointment(Date date) {
+        // 1. Set the specific date passed from Dashboard
+        if (date != null) {
+            dateChooser.setDate(date);
+        }
+
+        // 2. Default time to 08:00 (Start of work day)
+        Calendar cal = Calendar.getInstance();
+        cal.set(Calendar.HOUR_OF_DAY, 8);
+        cal.set(Calendar.MINUTE, 0);
+        timeSpinner.setValue(cal.getTime());
+
+        // 3. Focus Name field for instant typing
+        nameField.requestFocus();
     }
 }

@@ -79,8 +79,6 @@ public class Appointment {
     public String getCarLicensePlate() { return carLicensePlate; }
     public String getCarBrand() { return carBrand; }
     public String getCarModel() { return carModel; }
-
-    // NEW GETTERS
     public int getCarYear() { return carYear; }
     public String getCarPhotoPath() { return carPhotoPath; }
 
@@ -93,6 +91,6 @@ public class Appointment {
     public void setCarLicensePlate(String s) { this.carLicensePlate = s; }
     public void setCarBrand(String s) { this.carBrand = s; }
     public void setCarModel(String s) { this.carModel = s; }
-    public void setCarYear(int i) { this.carYear = i; }         // NEW
-    public void setCarPhotoPath(String s) { this.carPhotoPath = s; } // NEW
+    public void setCarYear(int i) { this.carYear = i; }
+    public void setCarPhotoPath(String s) { this.carPhotoPath = s; }
 }

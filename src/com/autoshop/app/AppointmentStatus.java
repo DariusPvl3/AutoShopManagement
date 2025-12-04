@@ -3,10 +3,10 @@ package com.autoshop.app;
 import java.awt.Color;
 
 public enum AppointmentStatus {
-    SCHEDULED(new Color(52, 152, 219)),   // Blue
-    IN_PROGRESS(new Color(243, 156, 18)), // Orange
-    DONE(new Color(39, 174, 96)),         // Green
-    CANCELLED(new Color(192, 57, 43));    // Red
+    SCHEDULED(new Color(1, 40, 227)),   // Blue
+    IN_PROGRESS(new Color(170, 156, 0)), // Orange
+    DONE(new Color(0, 124, 54)),         // Green
+    CANCELLED(new Color(216, 19, 0));    // Red
 
     private final Color color;
 

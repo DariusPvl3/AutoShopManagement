@@ -14,12 +14,12 @@ public class StatusCellRenderer extends DefaultTableCellRenderer {
 
             // 1. Set the Text Color
             if (isSelected) {
-                c.setForeground(Color.WHITE); // Keep selection white
+                c.setForeground(Color.WHITE);
             } else {
-                c.setForeground(status.getColor()); // Use the Enum color
+                c.setForeground(status.getColor());
             }
 
-            // 2. Set the Font (Optional: Make it bold)
+            // 2. Set the Font
             c.setFont(c.getFont().deriveFont(Font.BOLD));
         }
 

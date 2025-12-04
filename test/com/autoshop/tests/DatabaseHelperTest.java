@@ -51,6 +51,74 @@ public class DatabaseHelperTest {
         Assertions.assertEquals(0, checkList.size(), "Appointment should have been deleted.");
     }
 
+    @Test
+    public void testUpdateAppointment() throws SQLException {
+        // 1. Create original
+        Date date = new Date();
+        Appointment original = new Appointment("John Doe", "0711111111", "TM11TEST", "Audi", "A4", 2010, "", date, "Oil Change");
+        DatabaseHelper.addAppointmentTransaction(original);
+
+        // 2. Fetch it to get the ID
+        Appointment saved = DatabaseHelper.getAllAppointments().get(0);
+
+        // 3. Modify it (Change Name, Phone, and Status)
+        saved.setClientName("Johnathan Doe");
+        saved.setClientPhone("0799999999");
+        saved.setStatus(com.autoshop.app.AppointmentStatus.DONE);
+
+        // 4. Perform Update
+        DatabaseHelper.updateAppointmentTransaction(saved);
+
+        // 5. Fetch again and Verify
+        Appointment updated = DatabaseHelper.getAllAppointments().get(0);
+
+        Assertions.assertEquals("Johnathan Doe", updated.getClientName(), "Client Name should update");
+        Assertions.assertEquals("0799999999", updated.getClientPhone(), "Client Phone should update");
+        Assertions.assertEquals(com.autoshop.app.AppointmentStatus.DONE, updated.getStatus(), "Status should update");
+    }
+
+    @Test
+    public void testSearchFunction() throws SQLException {
+        Date now = new Date();
+        // Add two different cars
+        DatabaseHelper.addAppointmentTransaction(new Appointment("Client A", "0711111111", "TM01A", "Audi", "A4", 2010, "", now, "Fix"));
+        DatabaseHelper.addAppointmentTransaction(new Appointment("Client B", "0722222222", "TM02B", "BMW", "X5", 2015, "", now, "Fix"));
+
+        // 1. Search by Brand "Audi"
+        List<com.autoshop.app.Appointment> results = DatabaseHelper.searchAppointments("Audi", null, null, null);
+        Assertions.assertEquals(1, results.size(), "Search for 'Audi' should return 1 result");
+        Assertions.assertEquals("Audi", results.get(0).getCarBrand());
+
+        // 2. Search by License Plate partial "02"
+        results = DatabaseHelper.searchAppointments("02", null, null, null);
+        Assertions.assertEquals(1, results.size(), "Search for '02' should find the BMW");
+        Assertions.assertEquals("TM02B", results.get(0).getCarLicensePlate());
+
+        // 3. Search for non-existent
+        results = DatabaseHelper.searchAppointments("Mercedes", null, null, null);
+        Assertions.assertEquals(0, results.size(), "Search for missing item should return empty list");
+    }
+
+    @Test
+    public void testAutoUpdateStatuses() throws SQLException {
+        // 1. Create a date in the PAST (Yesterday)
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.add(java.util.Calendar.DAY_OF_YEAR, -1);
+        Date yesterday = cal.getTime();
+
+        // 2. Add an appointment with SCHEDULED status
+        Appointment pastAppt = new Appointment("Lazy Client", "0700000000", "TM00OLD", "Ford", "Focus", 2005, "", yesterday, "Late");
+        // (Default constructor sets status to SCHEDULED)
+        DatabaseHelper.addAppointmentTransaction(pastAppt);
+
+        // 3. Run the Automation
+        DatabaseHelper.autoUpdateStatuses();
+
+        // 4. Verify it flipped to IN_PROGRESS
+        Appointment result = DatabaseHelper.getAllAppointments().get(0);
+        Assertions.assertEquals(com.autoshop.app.AppointmentStatus.IN_PROGRESS, result.getStatus(), "Past SCHEDULED appointment should become IN_PROGRESS");
+    }
+
     @AfterAll
     public static void cleanUp() throws SQLException {
         DatabaseHelper.setDataBaseName("test.db");

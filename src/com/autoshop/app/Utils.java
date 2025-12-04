@@ -1,5 +1,6 @@
 package com.autoshop.app;
 
+import javax.swing.*;
 import java.util.Calendar;
 import java.util.Date;
 
@@ -57,5 +58,33 @@ public class Utils {
             return clean.replaceAll("^([A-Z]{1,2})([0-9]{2,3})([A-Z]{3})$", "$1-$2-$3");
         }
         return clean;
+    }
+
+    public static void addMouseScrollToSpinner(JSpinner spinner) {
+        spinner.addMouseWheelListener(e -> {
+            if (spinner.isEnabled()) {
+                // Determine direction
+                int rotation = e.getWheelRotation();
+
+                // Determine step (Hour or Minute?)
+                // Default to 15 minutes per scroll for speed
+                int step = (rotation < 0) ? 1 : -1;
+
+                // Manually adjust the date
+                Date current = (Date) spinner.getValue();
+                Calendar cal = Calendar.getInstance();
+                cal.setTime(current);
+                cal.add(Calendar.MINUTE, step * 15); // Jump 15 mins
+                spinner.setValue(cal.getTime());
+            }
+        });
+    }
+
+    public static boolean isToday(java.util.Date date) {
+        java.util.Calendar t = java.util.Calendar.getInstance();
+        java.util.Calendar d = java.util.Calendar.getInstance();
+        d.setTime(date);
+        return t.get(java.util.Calendar.YEAR) == d.get(java.util.Calendar.YEAR) &&
+                t.get(java.util.Calendar.DAY_OF_YEAR) == d.get(java.util.Calendar.DAY_OF_YEAR);
     }
 }

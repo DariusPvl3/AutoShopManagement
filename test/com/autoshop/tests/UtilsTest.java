@@ -4,6 +4,8 @@ import com.autoshop.app.Utils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
+import java.util.Date;
+
 public class UtilsTest {
     @Test
     void testTitleCase(){
@@ -74,5 +76,50 @@ public class UtilsTest {
         boolean expected8 = false;
         boolean actual8 = Utils.isValidPhone(input8);
         Assertions.assertEquals(expected8, actual8, "Null should not work");
+    }
+
+    @Test
+    void testLicensePlateFormatting() {
+        // 1. Standard format input
+        String input1 = "TM12ABC";
+        String expected1 = "TM-12-ABC";
+        Assertions.assertEquals(expected1, Utils.formatPlate(input1), "Should insert hyphens correctly");
+
+        // 2. Lowercase input
+        String input2 = "tm12abc";
+        Assertions.assertEquals(expected1, Utils.formatPlate(input2), "Should uppercase and format");
+
+        // 3. Already formatted
+        String input3 = "TM-12-ABC";
+        Assertions.assertEquals(expected1, Utils.formatPlate(input3), "Should ignore existing hyphens");
+
+        // 4. Invalid/Short plate (Should remain cleaned but unformatted)
+        String input4 = "TM1";
+        Assertions.assertEquals("TM1", Utils.formatPlate(input4), "Short input should just be uppercased");
+    }
+
+    @Test
+    void testCombineDateAndTime() {
+        // Setup: Date = 2025-12-25, Time = 14:30
+        java.util.Calendar dateCal = java.util.Calendar.getInstance();
+        dateCal.set(2025, java.util.Calendar.DECEMBER, 25);
+
+        java.util.Calendar timeCal = java.util.Calendar.getInstance();
+        timeCal.set(java.util.Calendar.HOUR_OF_DAY, 14);
+        timeCal.set(java.util.Calendar.MINUTE, 30);
+        timeCal.set(java.util.Calendar.SECOND, 0);
+
+        // Execute
+        Date result = Utils.combineDateAndTime(dateCal.getTime(), timeCal.getTime());
+
+        // Verify
+        java.util.Calendar resultCal = java.util.Calendar.getInstance();
+        resultCal.setTime(result);
+
+        Assertions.assertEquals(2025, resultCal.get(java.util.Calendar.YEAR));
+        Assertions.assertEquals(java.util.Calendar.DECEMBER, resultCal.get(java.util.Calendar.MONTH));
+        Assertions.assertEquals(25, resultCal.get(java.util.Calendar.DAY_OF_MONTH));
+        Assertions.assertEquals(14, resultCal.get(java.util.Calendar.HOUR_OF_DAY));
+        Assertions.assertEquals(30, resultCal.get(java.util.Calendar.MINUTE));
     }
 }

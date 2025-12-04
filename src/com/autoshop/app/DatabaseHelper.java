@@ -102,7 +102,7 @@ public class DatabaseHelper {
         }
     }
 
-    // NEW: Get Today's appointments OR any appointment that is currently IN_PROGRESS
+    // Get Today's appointments OR any appointment that is currently IN_PROGRESS
     public static List<Appointment> getDashboardAppointments(java.util.Date day) throws SQLException {
         List<Appointment> list = new ArrayList<>();
 
@@ -135,7 +135,7 @@ public class DatabaseHelper {
                 "JOIN Cars car ON app.car_id = car.car_id " +
                 "JOIN Clients client ON car.client_id = client.client_id " +
                 "WHERE (app.date >= " + start + " AND app.date <= " + end + ") " +
-                "OR (app.status = 'IN_PROGRESS')"; // <--- The Magic Fix
+                "OR (app.status = 'IN_PROGRESS')";
         return sql;
     }
 
@@ -204,8 +204,8 @@ public class DatabaseHelper {
                     pstmt.setString(1, appt.getCarLicensePlate());
                     pstmt.setString(2, appt.getCarBrand());
                     pstmt.setString(3, appt.getCarModel());
-                    pstmt.setInt(4, appt.getCarYear());       // NEW
-                    pstmt.setString(5, appt.getCarPhotoPath()); // NEW
+                    pstmt.setInt(4, appt.getCarYear());
+                    pstmt.setString(5, appt.getCarPhotoPath());
                     pstmt.setInt(6, appt.getCarID());
                     pstmt.executeUpdate();
                 }
@@ -298,10 +298,6 @@ public class DatabaseHelper {
     // AUTOMATION: Auto-start appointments if time has passed
     public static void autoUpdateStatuses() throws SQLException {
         long now = System.currentTimeMillis();
-
-        // SQL: Set status to IN_PROGRESS
-        // WHERE the date is in the past (<= now)
-        // AND the status is currently 'SCHEDULED' (Don't touch DONE or CANCELLED jobs)
         String sql = "UPDATE Appointments SET status = 'IN_PROGRESS' WHERE date <= ? AND status = 'SCHEDULED'";
 
         try (Connection conn = connect();
@@ -314,5 +310,132 @@ public class DatabaseHelper {
                 System.out.println("Auto-updated " + rowsUpdated + " appointments to IN_PROGRESS.");
             }
         }
+    }
+
+    public static List<Appointment> searchAppointments(String rawKeywords, AppointmentStatus status, java.util.Date from, java.util.Date to) throws SQLException {
+        List<Appointment> list = new ArrayList<>();
+
+        // Base Query
+        StringBuilder sql = new StringBuilder(
+                "SELECT app.appointment_id, app.date, app.problem, app.status, " +
+                        "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
+                        "client.name, client.phone " +
+                        "FROM Appointments app " +
+                        "JOIN Cars car ON app.car_id = car.car_id " +
+                        "JOIN Clients client ON car.client_id = client.client_id " +
+                        "WHERE 1=1 "
+        );
+
+        // 1. Handle Status Filter
+        if (status != null) {
+            sql.append("AND app.status = ? ");
+        }
+
+        // 2. Handle Date Filters
+        if (from != null) sql.append("AND app.date >= ? ");
+        if (to != null)   sql.append("AND app.date <= ? ");
+
+        // 3. Handle Smart Keywords (Split by space)
+        String[] tokens = null;
+        if (rawKeywords != null && !rawKeywords.isEmpty()) {
+            tokens = rawKeywords.trim().split("\\s+"); // Split by whitespace
+
+            for (int i = 0; i < tokens.length; i++) {
+                // For each word, we require a match in AT LEAST ONE of the fields
+                // AND ( ... OR ... OR ...)
+                sql.append("AND (")
+                        .append("client.name LIKE ? OR ")
+                        .append("client.phone LIKE ? OR ")
+                        .append("car.brand_name LIKE ? OR ")
+                        .append("car.model LIKE ? OR ")
+                        .append("car.year LIKE ? OR ")
+                        .append("app.problem LIKE ? OR ")
+                        // Check raw input against plate
+                        .append("car.license_plate LIKE ? OR ")
+                        // Check formatted input against plate (TM12ABC -> matches TM-12-ABC)
+                        .append("car.license_plate LIKE ? ")
+                        .append(") ");
+            }
+        }
+
+        try (Connection conn = connect();
+             PreparedStatement pstmt = conn.prepareStatement(sql.toString())) {
+
+            int index = 1;
+
+            // Fill Status
+            if (status != null) {
+                pstmt.setString(index++, status.name());
+            }
+
+            // Fill Dates
+            if (from != null) {
+                java.util.Calendar cal = java.util.Calendar.getInstance();
+                cal.setTime(from);
+                cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
+                cal.set(java.util.Calendar.MINUTE, 0);
+                cal.set(java.util.Calendar.SECOND, 0);
+                pstmt.setLong(index++, cal.getTimeInMillis());
+            }
+            if (to != null) {
+                java.util.Calendar cal = java.util.Calendar.getInstance();
+                cal.setTime(to);
+                cal.set(java.util.Calendar.HOUR_OF_DAY, 23);
+                cal.set(java.util.Calendar.MINUTE, 59);
+                cal.set(java.util.Calendar.SECOND, 59);
+                pstmt.setLong(index++, cal.getTimeInMillis());
+            }
+
+            // Fill Keywords
+            if (tokens != null) {
+                for (String token : tokens) {
+                    String pattern = "%" + token + "%";
+
+                    // Client Name
+                    pstmt.setString(index++, pattern);
+                    // Phone
+                    pstmt.setString(index++, pattern);
+                    // Brand
+                    pstmt.setString(index++, pattern);
+                    // Model
+                    pstmt.setString(index++, pattern);
+                    // Year
+                    pstmt.setString(index++, pattern);
+                    // Problem
+                    pstmt.setString(index++, pattern);
+                    // Plate (Raw)
+                    pstmt.setString(index++, pattern);
+
+                    // Plate (Formatted)
+                    // If user types "tm12abc", Utils formats to "TM-12-ABC"
+                    // If user types "Audi", Utils returns "AUDI" (no hyphens), which is fine
+                    String formattedPlate = Utils.formatPlate(token);
+                    String patternFormatted = "%" + formattedPlate + "%";
+                    pstmt.setString(index++, patternFormatted);
+                }
+            }
+
+            // Execute
+            try (ResultSet rs = pstmt.executeQuery()) {
+                while (rs.next()) {
+                    Appointment appt = new Appointment(
+                            rs.getInt("appointment_id"),
+                            rs.getInt("car_id"),
+                            new Date(rs.getLong("date")),
+                            rs.getString("problem"),
+                            AppointmentStatus.valueOf(rs.getString("status").toUpperCase()),
+                            rs.getString("name"),
+                            rs.getString("phone"),
+                            rs.getString("license_plate"),
+                            rs.getString("brand_name"),
+                            rs.getString("model"),
+                            rs.getInt("year"),
+                            rs.getString("photo_path")
+                    );
+                    list.add(appt);
+                }
+            }
+        }
+        return list;
     }
 }
