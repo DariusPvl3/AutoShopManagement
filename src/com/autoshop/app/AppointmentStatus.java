@@ -3,25 +3,25 @@ package com.autoshop.app;
 import java.awt.Color;
 
 public enum AppointmentStatus {
-    SCHEDULED(new Color(1, 40, 227)),   // Blue
-    IN_PROGRESS(new Color(170, 156, 0)), // Orange
-    DONE(new Color(0, 124, 54)),         // Green
-    CANCELLED(new Color(216, 19, 0));    // Red
+    // Pass Color AND Translation Key
+    SCHEDULED(new Color(52, 152, 219),   "sts.scheduled"),
+    IN_PROGRESS(new Color(243, 156, 18), "sts.in_progress"),
+    DONE(new Color(39, 174, 96),         "sts.done"),
+    CANCELLED(new Color(192, 57, 43),    "sts.cancelled");
 
     private final Color color;
+    private final String langKey; // NEW
 
-    AppointmentStatus(Color color) {
+    AppointmentStatus(Color color, String langKey) {
         this.color = color;
+        this.langKey = langKey;
     }
 
     public Color getColor() {
         return color;
     }
 
-    // Helper to make the text look nice ("IN_PROGRESS" -> "In Progress")
-    @Override
-    public String toString() {
-        String s = super.toString();
-        return s.charAt(0) + s.substring(1).toLowerCase().replace("_", " ");
+    public String getLangKey() {
+        return langKey;
     }
 }

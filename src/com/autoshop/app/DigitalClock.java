@@ -18,7 +18,7 @@ public class DigitalClock extends JLabel {
     }
 
     private void updateTime() {
-        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss  |  EEE, dd MMM yyyy");
+        SimpleDateFormat sdf = new SimpleDateFormat("HH:mm:ss  |  EEE, dd MMM yyyy", LanguageHelper.getCurrentLocale());
         setText(sdf.format(new Date()));
     }
 }

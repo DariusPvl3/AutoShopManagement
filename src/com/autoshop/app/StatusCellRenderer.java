@@ -9,15 +9,20 @@ public class StatusCellRenderer extends DefaultTableCellRenderer {
     public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
         Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
-        if (value instanceof AppointmentStatus status) {
-            // 1. Set the Text Color
+        // Handle Enum Objects (Ideally your table model returns Enums now)
+        if (value instanceof AppointmentStatus) {
+            AppointmentStatus status = (AppointmentStatus) value;
+
+            // Translate
+            setText(LanguageHelper.getString(status.getLangKey()));
+
+            // Color
             if (isSelected) {
                 c.setForeground(Color.WHITE);
             } else {
                 c.setForeground(status.getColor());
             }
 
-            // 2. Set the Font
             c.setFont(c.getFont().deriveFont(Font.BOLD));
         }
 

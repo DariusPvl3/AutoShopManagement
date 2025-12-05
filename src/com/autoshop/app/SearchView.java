@@ -14,6 +14,7 @@ import java.util.function.Consumer;
 
 public class SearchView extends JPanel {
 
+    private JLabel keywordLabel, fromLabel, toLabel, statusLabel;
     private final JTextField searchField;
     private final JDateChooser dateFrom;
     private final JDateChooser dateTo;
@@ -28,6 +29,14 @@ public class SearchView extends JPanel {
 
     public SearchView() {
         setLayout(new BorderLayout());
+        keywordLabel = new JLabel();
+        fromLabel = new JLabel();
+        toLabel = new JLabel();
+        statusLabel = new JLabel();
+        keywordLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        fromLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        toLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        statusLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
 
         // --- 1. FILTERS PANEL (North) ---
         JPanel filterPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 15, 10));
@@ -36,6 +45,7 @@ public class SearchView extends JPanel {
         searchField.setFont(new Font("SansSerif", Font.PLAIN, 14));
 
         statusFilterBox = new JComboBox<>();
+        statusFilterBox.setRenderer(new StatusListRenderer());
         statusFilterBox.addItem("All Statuses");
         for (AppointmentStatus s : AppointmentStatus.values()) {
             statusFilterBox.addItem(s);
@@ -56,13 +66,14 @@ public class SearchView extends JPanel {
         resetButton = new RoundedButton("Reset");
         ButtonStyler.apply(resetButton, new Color(149, 165, 166)); // Grey
 
-        filterPanel.add(new JLabel("Keyword:"));
+        filterPanel.add(keywordLabel);
         filterPanel.add(searchField);
-        filterPanel.add(new JLabel("Status:"));
+        statusLabel.setText("Status");
+        filterPanel.add(statusLabel);
         filterPanel.add(statusFilterBox);
-        filterPanel.add(new JLabel("From:"));
+        filterPanel.add(fromLabel);
         filterPanel.add(dateFrom);
-        filterPanel.add(new JLabel("To:"));
+        filterPanel.add(toLabel);
         filterPanel.add(dateTo);
         filterPanel.add(searchButton);
         filterPanel.add(resetButton);
@@ -114,6 +125,8 @@ public class SearchView extends JPanel {
         });
 
         setUpShortcuts();
+        LanguageHelper.addListener(this::updateText);
+        updateText();
     }
 
     public void setOnJumpRequest(Consumer<Integer> callback) {
@@ -195,5 +208,43 @@ public class SearchView extends JPanel {
                 if(resetButton.isEnabled()) resetButton.doClick();
             }
         });
+    }
+
+    private void updateText() {
+        keywordLabel.setText(LanguageHelper.getString("lbl.keyword"));
+        fromLabel.setText(LanguageHelper.getString("lbl.from"));
+        toLabel.setText(LanguageHelper.getString("lbl.to"));
+        searchButton.setText(LanguageHelper.getString("btn.search"));
+        resetButton.setText(LanguageHelper.getString("btn.reset"));
+
+        Object currentSelection = statusFilterBox.getSelectedItem();
+        statusFilterBox.removeAllItems();
+        statusFilterBox.addItem(LanguageHelper.getString("lbl.all_statuses"));
+        for(AppointmentStatus status : AppointmentStatus.values()){
+            statusFilterBox.addItem(status);
+        }
+        if(currentSelection instanceof AppointmentStatus){
+            statusFilterBox.setSelectedItem(currentSelection);
+        } else {
+            statusFilterBox.setSelectedIndex(0);
+        }
+
+        // Table Headers
+        if (tableModel != null) {
+            String[] cols = {
+                    LanguageHelper.getString("col.client"),
+                    LanguageHelper.getString("col.phone"),
+                    LanguageHelper.getString("col.plate"),
+                    LanguageHelper.getString("col.brand"),
+                    LanguageHelper.getString("col.model"),
+                    LanguageHelper.getString("col.year"),
+                    LanguageHelper.getString("col.date"),
+                    LanguageHelper.getString("col.problem"),
+                    LanguageHelper.getString("col.status")
+            };
+            tableModel.setColumnIdentifiers(cols);
+            resultsTable.getColumnModel().getColumn(8).setCellRenderer(new StatusCellRenderer());
+            resultsTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 16));
+        }
     }
 }

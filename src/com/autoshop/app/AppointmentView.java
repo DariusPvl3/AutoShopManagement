@@ -20,6 +20,7 @@ public class AppointmentView extends JPanel {
 
     private DefaultTableModel tableModel;
     private JTable table;
+    private JPanel clientPanel, carPanel, appointmentPanel;
 
     // Inputs
     private JTextField nameField;
@@ -34,6 +35,9 @@ public class AppointmentView extends JPanel {
     private JTextField problemDescriptionField;
     private JDateChooser dateChooser;
     private JSpinner timeSpinner;
+
+    // Labels
+    private JLabel nameLabel, phoneLabel, plateLabel, brandLabel, modelLabel, yearLabel, photoTitleLabel, dateLabel, problemLabel, atLabel;
 
     // Buttons
     private JButton addButton;
@@ -68,11 +72,36 @@ public class AppointmentView extends JPanel {
                 loadDataFromDB();
             }
         });
+
+        LanguageHelper.addListener(this::updateText);
+
+        updateText();
     }
 
     // --- COMPONENT INITIALIZATION ---
     private void initializeComponents() {
         Font inputFont = new Font("SansSerif", Font.PLAIN, 16);
+
+        nameLabel = new JLabel();
+        nameLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        phoneLabel = new JLabel();
+        phoneLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        plateLabel = new JLabel();
+        plateLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        brandLabel = new JLabel();
+        brandLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        modelLabel = new JLabel();
+        modelLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        yearLabel = new JLabel();
+        yearLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        photoTitleLabel = new JLabel();
+        photoTitleLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        dateLabel = new JLabel();
+        dateLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        problemLabel = new JLabel();
+        problemLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
+        atLabel = new JLabel();
+        atLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
 
         nameField = new JTextField(12); nameField.setFont(inputFont);
         phoneField = new JTextField(12);  phoneField.setFont(inputFont);
@@ -148,40 +177,43 @@ public class AppointmentView extends JPanel {
         JPanel mainPanel = new JPanel(new GridLayout(1, 3, 15, 0));
         mainPanel.setBorder(BorderFactory.createEmptyBorder(15, 15, 15, 15));
 
-        JPanel clientPanel = createStyledPanel("Client Details");
-        clientPanel.add(new JLabel("Name:"));
+        clientPanel = new JPanel();
+        clientPanel.setLayout(new BoxLayout(clientPanel, BoxLayout.Y_AXIS));
+        clientPanel.add(nameLabel);
         clientPanel.add(nameField);
         clientPanel.add(Box.createVerticalStrut(10));
-        clientPanel.add(new JLabel("Phone:"));
+        clientPanel.add(phoneLabel);
         clientPanel.add(phoneField);
 
-        JPanel carPanel = createStyledPanel("Car Details");
-        carPanel.add(new JLabel("Brand:"));
+        carPanel = new JPanel();
+        carPanel.setLayout(new BoxLayout(carPanel, BoxLayout.Y_AXIS));
+        carPanel.add(brandLabel);
         carPanel.add(carBrandBox);
-        carPanel.add(new JLabel("Model:"));
+        carPanel.add(modelLabel);
         carPanel.add(carModelField);
-        carPanel.add(new JLabel("License Plate:"));
+        carPanel.add(plateLabel);
         carPanel.add(carLicensePlateField);
-        carPanel.add(new JLabel("Year:"));
+        carPanel.add(yearLabel);
         carPanel.add(carYearField);
 
         JPanel photoPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         photoPanel.add(selectPhotoButton);
         photoPanel.add(Box.createVerticalStrut(10));
         photoPanel.add(photoLabel);
-        carPanel.add(new JLabel("Car registration:"));
+        carPanel.add(photoTitleLabel);
         carPanel.add(photoPanel);
 
-        JPanel appointmentPanel = createStyledPanel("Appointment Info");
         JPanel dateTimePanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 0, 0));
         dateTimePanel.add(dateChooser);
-        dateTimePanel.add(new JLabel("  at  "));
+        dateTimePanel.add(atLabel);
         dateTimePanel.add(timeSpinner);
 
-        appointmentPanel.add(new JLabel("Date & Time:"));
+        appointmentPanel = new JPanel();
+        appointmentPanel.setLayout(new BoxLayout(appointmentPanel, BoxLayout.Y_AXIS));
+        appointmentPanel.add(dateLabel);
         appointmentPanel.add(dateTimePanel);
         appointmentPanel.add(Box.createVerticalStrut(5));
-        appointmentPanel.add(new JLabel("Problem:"));
+        appointmentPanel.add(problemLabel);
         appointmentPanel.add(problemDescriptionField);
         appointmentPanel.add(Box.createVerticalStrut(10));
 
@@ -595,5 +627,60 @@ public class AppointmentView extends JPanel {
                 if (deleteButton.isEnabled()) deleteButton.doClick();
             }
         });
+    }
+
+    private void updateText() {
+        // Buttons
+        addButton.setText(LanguageHelper.getString("btn.add"));
+        updateButton.setText(LanguageHelper.getString("btn.update"));
+        deleteButton.setText(LanguageHelper.getString("btn.delete"));
+        clearButton.setText(LanguageHelper.getString("btn.clear"));
+        selectPhotoButton.setText(LanguageHelper.getString("btn.select_photo"));
+
+        // Labels
+        nameLabel.setText(LanguageHelper.getString("lbl.name"));
+        phoneLabel.setText(LanguageHelper.getString("lbl.phone"));
+        plateLabel.setText(LanguageHelper.getString("lbl.plate"));
+        brandLabel.setText(LanguageHelper.getString("lbl.brand"));
+        modelLabel.setText(LanguageHelper.getString("lbl.model"));
+        yearLabel.setText(LanguageHelper.getString("lbl.year"));
+        photoTitleLabel.setText(LanguageHelper.getString("lbl.photo"));
+        dateLabel.setText(LanguageHelper.getString("lbl.date"));
+        problemLabel.setText(LanguageHelper.getString("lbl.problem"));
+        atLabel.setText(LanguageHelper.getString("lbl.at"));
+
+        // Table Headers
+        if (tableModel != null) {
+            String[] cols = {
+                    LanguageHelper.getString("col.client"),
+                    LanguageHelper.getString("col.phone"),
+                    LanguageHelper.getString("col.plate"),
+                    LanguageHelper.getString("col.brand"),
+                    LanguageHelper.getString("col.model"),
+                    LanguageHelper.getString("col.year"),
+                    LanguageHelper.getString("col.date"),
+                    LanguageHelper.getString("col.problem"),
+                    LanguageHelper.getString("col.status")
+            };
+            tableModel.setColumnIdentifiers(cols);
+            table.getColumnModel().getColumn(8).setCellRenderer(new StatusCellRenderer());
+            table.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 16));
+        }
+
+        // Re-create borders with translated titles
+        clientPanel.setBorder(createStyledBorder("sect.client"));
+        carPanel.setBorder(createStyledBorder("sect.car"));
+        appointmentPanel.setBorder(createStyledBorder("sect.appointment"));
+    }
+
+    private javax.swing.border.Border createStyledBorder(String titleKey) {
+        return BorderFactory.createCompoundBorder(
+                BorderFactory.createTitledBorder(
+                        BorderFactory.createLineBorder(Color.GRAY),
+                        LanguageHelper.getString(titleKey), // Translate!
+                        0, 0, new Font("SansSerif", Font.BOLD, 16)
+                ),
+                BorderFactory.createEmptyBorder(10, 10, 10, 10)
+        );
     }
 }

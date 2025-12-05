@@ -9,31 +9,66 @@ public class CalendarCustomizer {
 
     public static void styleCalendar(JCalendar calendar) {
         JPanel dayPanel = calendar.getDayChooser().getDayPanel();
+
+        // 1. Reset Body Logic
         calendar.getDayChooser().setDecorationBackgroundVisible(true);
 
+        // 2. Fonts & Sizes
         Font headerFont = new Font("SansSerif", Font.BOLD, 16);
         Dimension comboSize = new Dimension(150, 35);
         Dimension spinnerSize = new Dimension(100, 35);
 
-        // Style Header
-        JPanel monthPanel = calendar.getMonthChooser();
+        // --- 3. STYLE MONTH CHOOSER ---
+        JPanel monthPanel = (JPanel) calendar.getMonthChooser();
         monthPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 25));
 
         JComboBox<?> monthCombo = (JComboBox<?>) calendar.getMonthChooser().getComboBox();
         monthCombo.setFont(headerFont);
         monthCombo.setPreferredSize(comboSize);
-        ((JLabel)monthCombo.getRenderer()).setHorizontalAlignment(SwingConstants.CENTER);
 
-        JPanel yearPanel = calendar.getYearChooser();
+        // THE FIX FOR MONTHS: Custom Renderer to Capitalize
+        monthCombo.setRenderer(new DefaultListCellRenderer() {
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                JLabel l = (JLabel) super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                l.setFont(headerFont);
+                l.setHorizontalAlignment(SwingConstants.CENTER);
+
+                // CAPITALIZE TEXT
+                String text = l.getText();
+                if (text != null && !text.isEmpty()) {
+                    l.setText(text.substring(0, 1).toUpperCase() + text.substring(1));
+                }
+                return l;
+            }
+        });
+
+        // --- 4. STYLE YEAR CHOOSER ---
+        JPanel yearPanel = (JPanel) calendar.getYearChooser();
         yearPanel.setPreferredSize(spinnerSize);
         JSpinner yearSpinner = (JSpinner) calendar.getYearChooser().getSpinner();
         yearSpinner.setFont(headerFont);
         yearSpinner.setPreferredSize(spinnerSize);
         styleSpinnerTextField(yearSpinner, headerFont);
 
-        // Style Days
+        // --- 5. STYLE DAY NAMES (Sun, Mon, Tue...) ---
+        // These are usually JLabels inside the dayPanel (at the top)
+        // We iterate and force capitalization
         for (Component comp : dayPanel.getComponents()) {
-            comp.setFont(new Font("SansSerif", Font.BOLD, 14));
+            // Day Names are typically JLabels, Day Numbers are JButtons
+            if (comp instanceof JLabel) {
+                JLabel dayLabel = (JLabel) comp;
+                dayLabel.setFont(new Font("SansSerif", Font.BOLD, 12)); // Make header smaller/different if needed
+
+                String text = dayLabel.getText();
+                if (text != null && !text.isEmpty()) {
+                    dayLabel.setText(text.substring(0, 1).toUpperCase() + text.substring(1));
+                }
+            }
+            // Day Buttons
+            else if (comp instanceof JButton) {
+                comp.setFont(new Font("SansSerif", Font.BOLD, 14));
+            }
         }
     }
 

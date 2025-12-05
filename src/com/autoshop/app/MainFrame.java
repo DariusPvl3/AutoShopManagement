@@ -6,6 +6,7 @@ import java.awt.*;
 public class MainFrame extends JFrame {
     private final CardLayout cardLayout;
     private final JPanel mainPanel;
+    private JButton homeButton, appointmentButton, searchButton, settingsButton;
 
     public MainFrame() {
         setTitle("AutoShop Scheduler V1.3.1");
@@ -27,10 +28,10 @@ public class MainFrame extends JFrame {
         mainPanel.add(settingsView, "SETTINGS");
 
         JPanel menuPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        JButton homeButton = new JButton("Home");
-        JButton appointmentButton = new JButton("Appointments");
-        JButton searchButton = new JButton("Search");
-        JButton settingsButton = new JButton("Settings");
+        homeButton = new JButton("Home");
+        appointmentButton = new JButton("Appointments");
+        searchButton = new JButton("Search");
+        settingsButton = new JButton("Settings");
 
         styleMenuButton(homeButton);
         styleMenuButton(appointmentButton);
@@ -77,6 +78,9 @@ public class MainFrame extends JFrame {
         add(mainPanel, BorderLayout.CENTER);
 
         cardLayout.show(mainPanel, "HOME");
+
+        LanguageHelper.addListener(this::updateText);
+        updateText();
     }
 
     private void styleMenuButton(JButton btn) {
@@ -95,5 +99,13 @@ public class MainFrame extends JFrame {
             }
             new MainFrame().setVisible(true);
         });
+    }
+
+    private void updateText() {
+        homeButton.setText(LanguageHelper.getString("btn.home"));
+        appointmentButton.setText(LanguageHelper.getString("btn.appointments"));
+        searchButton.setText(LanguageHelper.getString("btn.search"));
+        settingsButton.setText(LanguageHelper.getString("btn.settings"));
+        setTitle(LanguageHelper.getString("app.title"));
     }
 }

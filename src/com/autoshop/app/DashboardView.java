@@ -16,10 +16,11 @@ public class DashboardView extends JPanel {
 
     private final ArrayList<Appointment> appointmentList = new ArrayList<>();
     private final DefaultTableModel tableModel;
-    private final JLabel appointmentsTodayLabel = new JLabel();
-    private final JLabel activeLabel = new JLabel();
     private final JTable agendaTable = new JTable();
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+
+    private JLabel tableHeader, todayLabel, activeLabel;
+
 
     // Callbacks
     private Consumer<Integer> onJumpRequest;      // Jump to Edit
@@ -37,9 +38,14 @@ public class DashboardView extends JPanel {
         // --- 1. TOP STATS ---
         JPanel statsPanel = new JPanel(new BorderLayout());
         JPanel labelsPanel = new JPanel(new FlowLayout(FlowLayout.LEFT));
-        appointmentsTodayLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        todayLabel = new JLabel();
+        todayLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        activeLabel = new JLabel();
         activeLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-        labelsPanel.add(appointmentsTodayLabel);
+        labelsPanel.add(todayLabel);
+        todayLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        activeLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
+        labelsPanel.add(todayLabel);
         labelsPanel.add(Box.createHorizontalStrut(30));
         labelsPanel.add(activeLabel);
         statsPanel.add(labelsPanel, BorderLayout.WEST);
@@ -54,7 +60,7 @@ public class DashboardView extends JPanel {
 
         // --- SECTION A: AGENDA TABLE ---
         JPanel tableSection = new JPanel(new BorderLayout(0, 10));
-        JLabel tableHeader = new JLabel("Appointments Today");
+        tableHeader = new JLabel();
         tableHeader.setFont(new Font("SansSerif", Font.BOLD, 20));
         tableHeader.setForeground(new Color(80, 80, 80));
         tableSection.add(tableHeader, BorderLayout.NORTH);
@@ -119,6 +125,9 @@ public class DashboardView extends JPanel {
             @Override public void componentShown(java.awt.event.ComponentEvent e) { loadDataFromDB(); }
         });
         loadDataFromDB();
+
+        LanguageHelper.addListener(this::updateText);
+        updateText();
     }
 
     // --- CLICK MENU LOGIC ---
@@ -206,8 +215,11 @@ public class DashboardView extends JPanel {
             java.util.List<Appointment> activeList = DatabaseHelper.getActiveAppointments();
             long todayCount = appointmentList.stream().filter(a -> Utils.isToday(a.getDate())).count();
 
-            appointmentsTodayLabel.setText("Appointments Today: " + todayCount);
-            activeLabel.setText("Active: " + activeList.size());
+            String todayBase = LanguageHelper.getString("dsb.today");
+            String activeBase = LanguageHelper.getString("dsb.active");
+
+            todayLabel.setText(todayBase + todayCount);
+            activeLabel.setText(activeBase + activeList.size());
 
             // Sorting logic
             appointmentList.sort(Comparator.comparing(Appointment::getDate));
@@ -247,5 +259,28 @@ public class DashboardView extends JPanel {
                     c1.get(java.util.Calendar.DAY_OF_YEAR) == c2.get(java.util.Calendar.DAY_OF_YEAR)) count++;
         }
         return count;
+    }
+
+    private void updateText() {
+        tableHeader.setText(LanguageHelper.getString("hdr.dashboard"));
+        loadDataFromDB();
+        if (tableModel != null) {
+            String[] cols = {
+                    LanguageHelper.getString("col.client"),
+                    LanguageHelper.getString("col.phone"),
+                    LanguageHelper.getString("col.plate"),
+                    LanguageHelper.getString("col.brand"),
+                    LanguageHelper.getString("col.date"),
+                    LanguageHelper.getString("col.status")
+            };
+            tableModel.setColumnIdentifiers(cols);
+            agendaTable.getColumnModel().getColumn(5).setCellRenderer(new StatusCellRenderer());
+            agendaTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 16));
+
+            calendar.setLocale(LanguageHelper.getCurrentLocale());
+            SwingUtilities.invokeLater(() -> {
+                CalendarCustomizer.styleCalendar(calendar);
+            });
+        }
     }
 }
