@@ -1,4 +1,4 @@
-package com.autoshop.app;
+package com.autoshop.app.util;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -16,8 +16,8 @@ public class LanguageHelper {
     }
 
     public static void setLocale(Locale locale) {
-        currentLocale = locale; // Update it
-        bundle = ResourceBundle.getBundle("messages", locale);
+        currentLocale = locale;
+        bundle = ResourceBundle.getBundle("messages", locale, new UTF8Control());
         notifyListeners();
     }
 

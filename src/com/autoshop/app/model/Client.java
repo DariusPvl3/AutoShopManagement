@@ -1,4 +1,4 @@
-package com.autoshop.app;
+package com.autoshop.app.model;
 
 public class Client {
     private int clientID;

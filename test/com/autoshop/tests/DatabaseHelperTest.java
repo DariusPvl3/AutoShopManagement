@@ -1,7 +1,8 @@
 package com.autoshop.tests;
 
-import com.autoshop.app.Appointment;
-import com.autoshop.app.DatabaseHelper;
+import com.autoshop.app.model.Appointment;
+import com.autoshop.app.util.DatabaseHelper;
+import com.autoshop.app.model.AppointmentStatus;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,7 +65,7 @@ public class DatabaseHelperTest {
         // 3. Modify it (Change Name, Phone, and Status)
         saved.setClientName("Johnathan Doe");
         saved.setClientPhone("0799999999");
-        saved.setStatus(com.autoshop.app.AppointmentStatus.DONE);
+        saved.setStatus(AppointmentStatus.DONE);
 
         // 4. Perform Update
         DatabaseHelper.updateAppointmentTransaction(saved);
@@ -74,7 +75,7 @@ public class DatabaseHelperTest {
 
         Assertions.assertEquals("Johnathan Doe", updated.getClientName(), "Client Name should update");
         Assertions.assertEquals("0799999999", updated.getClientPhone(), "Client Phone should update");
-        Assertions.assertEquals(com.autoshop.app.AppointmentStatus.DONE, updated.getStatus(), "Status should update");
+        Assertions.assertEquals(AppointmentStatus.DONE, updated.getStatus(), "Status should update");
     }
 
     @Test
@@ -85,7 +86,7 @@ public class DatabaseHelperTest {
         DatabaseHelper.addAppointmentTransaction(new Appointment("Client B", "0722222222", "TM02B", "BMW", "X5", 2015, "", now, "Fix"));
 
         // 1. Search by Brand "Audi"
-        List<com.autoshop.app.Appointment> results = DatabaseHelper.searchAppointments("Audi", null, null, null);
+        List<Appointment> results = DatabaseHelper.searchAppointments("Audi", null, null, null);
         Assertions.assertEquals(1, results.size(), "Search for 'Audi' should return 1 result");
         Assertions.assertEquals("Audi", results.getFirst().getCarBrand());
 
@@ -116,7 +117,7 @@ public class DatabaseHelperTest {
 
         // 4. Verify it flipped to IN_PROGRESS
         Appointment result = DatabaseHelper.getAllAppointments().getFirst();
-        Assertions.assertEquals(com.autoshop.app.AppointmentStatus.IN_PROGRESS, result.getStatus(), "Past SCHEDULED appointment should become IN_PROGRESS");
+        Assertions.assertEquals(AppointmentStatus.IN_PROGRESS, result.getStatus(), "Past SCHEDULED appointment should become IN_PROGRESS");
     }
 
     @AfterAll

@@ -1,5 +1,6 @@
-package com.autoshop.app;
+package com.autoshop.app.component;
 
+import com.autoshop.app.util.LanguageHelper;
 import javax.swing.*;
 import java.awt.*;
 import java.text.SimpleDateFormat;
@@ -8,7 +9,6 @@ import java.util.Date;
 public class DigitalClock extends JLabel {
     public DigitalClock() {
         setFont(new Font("SansSerif", Font.BOLD, 24));
-        setForeground(new Color(52, 152, 219)); // Blue color
         setHorizontalAlignment(SwingConstants.RIGHT);
 
         // Update every 1000ms (1 second)

@@ -1,6 +1,6 @@
 package com.autoshop.tests;
 
-import com.autoshop.app.Utils;
+import com.autoshop.app.util.Utils;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 

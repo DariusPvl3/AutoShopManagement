@@ -1,4 +1,7 @@
-package com.autoshop.app;
+package com.autoshop.app.util;
+
+import com.autoshop.app.model.Appointment;
+import com.autoshop.app.model.AppointmentStatus;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -76,9 +79,8 @@ public class DatabaseHelper {
         try (PreparedStatement preparedStatement = conn.prepareStatement(checkSql)) {
             preparedStatement.setString(1, phone);
             ResultSet rs = preparedStatement.executeQuery();
-            if (rs.next()) {
+            if (rs.next())
                 return rs.getInt("client_id"); // Client exists!
-            }
         }
 
         // 2. Create new
@@ -95,7 +97,7 @@ public class DatabaseHelper {
     public static List<Appointment> getDashboardAppointments(java.util.Date day) throws SQLException {
         List<Appointment> list = new ArrayList<>();
 
-        // 1. Calculate Today's Range
+        // Calculate Today's Range
         java.util.Calendar cal = java.util.Calendar.getInstance();
         cal.setTime(day);
         cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
@@ -116,7 +118,7 @@ public class DatabaseHelper {
     private static String getString(Calendar cal, long start) {
         long end = cal.getTimeInMillis();
 
-        // 2. The Hybrid SQL
+        // The Hybrid SQL
         return "SELECT app.appointment_id, app.date, app.problem, app.status, " +
                 "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
                 "client.name, client.phone " +
@@ -315,9 +317,7 @@ public class DatabaseHelper {
         );
 
         // 1. Handle Status Filter
-        if (status != null) {
-            sql.append("AND app.status = ? ");
-        }
+        if (status != null) sql.append("AND app.status = ? ");
 
         // 2. Handle Date Filters
         if (from != null) sql.append("AND app.date >= ? ");
@@ -348,14 +348,10 @@ public class DatabaseHelper {
 
         try (Connection conn = connect();
              PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
-
             int index = 1;
-
             // Fill Status
-            if (status != null) {
+            if (status != null)
                 preparedStatement.setString(index++, status.name());
-            }
-
             // Fill Dates
             if (from != null) {
                 java.util.Calendar cal = java.util.Calendar.getInstance();
@@ -373,12 +369,10 @@ public class DatabaseHelper {
                 cal.set(java.util.Calendar.SECOND, 59);
                 preparedStatement.setLong(index++, cal.getTimeInMillis());
             }
-
             // Fill Keywords
             if (tokens != null) {
                 for (String token : tokens) {
                     String pattern = "%" + token + "%";
-
                     // Client Name
                     preparedStatement.setString(index++, pattern);
                     // Phone
@@ -393,7 +387,6 @@ public class DatabaseHelper {
                     preparedStatement.setString(index++, pattern);
                     // Plate (Raw)
                     preparedStatement.setString(index++, pattern);
-
                     // Plate (Formatted)
                     // If user types "tm12abc", Utils formats to "TM-12-ABC"
                     // If user types "Audi", Utils returns "AUDI" (no hyphens), which is fine
@@ -402,7 +395,6 @@ public class DatabaseHelper {
                     preparedStatement.setString(index++, patternFormatted);
                 }
             }
-
             // Execute
             try (ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {

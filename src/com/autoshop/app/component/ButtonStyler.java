@@ -1,4 +1,4 @@
-package com.autoshop.app;
+package com.autoshop.app.component;
 
 import javax.swing.*;
 import java.awt.*;
@@ -35,19 +35,14 @@ public class ButtonStyler {
 
             @Override
             public void mousePressed(MouseEvent e) {
-                if (btn.isEnabled()) {
-                    btn.setBackground(pressColor);
-                }
+                if (btn.isEnabled()) btn.setBackground(pressColor);
             }
 
             @Override
             public void mouseReleased(MouseEvent e) {
                 if (btn.isEnabled()) {
-                    if (btn.contains(e.getPoint())) {
-                        btn.setBackground(hoverColor);
-                    } else {
-                        btn.setBackground(baseColor);
-                    }
+                    if (btn.contains(e.getPoint())) btn.setBackground(hoverColor);
+                    else btn.setBackground(baseColor);
                 }
             }
         });

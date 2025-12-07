@@ -1,5 +1,8 @@
-package com.autoshop.app;
+package com.autoshop.app.component;
 
+import com.autoshop.app.model.Appointment;
+import com.autoshop.app.model.AppointmentStatus;
+import com.autoshop.app.util.DatabaseHelper;
 import javax.swing.*;
 import java.awt.*;
 import java.sql.SQLException;
@@ -11,11 +14,10 @@ public class StatusMenuHelper {
         JPopupMenu popupMenu = new JPopupMenu();
 
         // Iterate through ALL statuses in the Enum to create menu items dynamically
-        // This is better than hardcoding "Mark as DONE", etc.
         for (AppointmentStatus status : AppointmentStatus.values()) {
             JMenuItem item = new JMenuItem("Mark as " + status.toString());
 
-            // --- THE COLOR MAGIC ---
+            // --- COLOR ---
             item.setForeground(status.getColor());
             item.setFont(new Font("SansSerif", Font.BOLD, 12));
             item.addActionListener(_ -> {
@@ -24,17 +26,15 @@ public class StatusMenuHelper {
 
                 try {
                     Appointment appointment = appointmentList.get(selectedRow);
-                    appointment.setStatus(status); // Update Object
-                    DatabaseHelper.updateAppointmentTransaction(appointment); // Update DB
-                    onRefresh.run(); // Refresh UI
+                    appointment.setStatus(status);
+                    DatabaseHelper.updateAppointmentTransaction(appointment);
+                    onRefresh.run();
                 } catch (SQLException ex) {
                     JOptionPane.showMessageDialog(parent, "Error: " + ex.getMessage());
                 }
             });
-
             popupMenu.add(item);
         }
-
         table.setComponentPopupMenu(popupMenu);
     }
 }

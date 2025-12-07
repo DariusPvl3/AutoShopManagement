@@ -1,6 +1,7 @@
-package com.autoshop.app;
+package com.autoshop.app.util;
 
 import javax.swing.*;
+import java.awt.*;
 import java.io.File;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
@@ -8,9 +9,8 @@ import java.util.Date;
 
 public class Utils {
     public static String toTitleCase(String input) {
-        if (input == null || input.isEmpty()) {
+        if (input == null || input.isEmpty())
             return "";
-        }
         String[] words = input.trim().split("\\s+"); // Split by spaces
         StringBuilder result = new StringBuilder();
 
@@ -98,39 +98,20 @@ public class Utils {
         return new SimpleDateFormat("yyyy-MM-dd_HH-mm").format(new Date());
     }
 
-    public static java.util.Locale getCapitalizedLocale(java.util.Locale original) {
-        if (!original.getLanguage().equals("ro")) {
-            return original; // Return as-is for English
-        }
-
-        // 1. Get standard symbols
-        java.text.DateFormatSymbols symbols = new java.text.DateFormatSymbols(original);
-
-        // 2. Capitalize Months
-        String[] months = symbols.getMonths();
-        for (int i = 0; i < months.length; i++) {
-            if (!months[i].isEmpty()) {
-                months[i] = months[i].substring(0, 1).toUpperCase() + months[i].substring(1);
+    public static ImageIcon loadIcon(String path, int width, int height) {
+        try {
+            java.net.URL imgURL = Utils.class.getResource(path);
+            if (imgURL != null) {
+                ImageIcon originalIcon = new ImageIcon(imgURL);
+                Image scaledImage = originalIcon.getImage().getScaledInstance(width, height, Image.SCALE_SMOOTH);
+                return new ImageIcon(scaledImage);
+            } else {
+                System.err.println("Could not find file: " + path);
+                return null;
             }
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
         }
-        symbols.setMonths(months);
-
-        // 3. Capitalize Short Weekdays (lun, mar...)
-        String[] shortWeekdays = symbols.getShortWeekdays();
-        for (int i = 0; i < shortWeekdays.length; i++) {
-            if (!shortWeekdays[i].isEmpty()) {
-                shortWeekdays[i] = shortWeekdays[i].substring(0, 1).toUpperCase() + shortWeekdays[i].substring(1);
-            }
-        }
-        symbols.setShortWeekdays(shortWeekdays);
-
-        // 4. Unfortunately, JCalendar is tricky.
-        // It uses the Locale directly, not just the symbols.
-        // We can't easily attach 'symbols' to a Locale object.
-
-        // ALTERNATIVE STRATEGY:
-        // Since JCalendar doesn't let us inject DateFormatSymbols easily into its internal JDayChooser/JMonthChooser,
-        // we have to rely on a UI Hack: Walk the components and rename them.
-        return original;
     }
 }

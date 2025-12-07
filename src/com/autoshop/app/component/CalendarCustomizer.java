@@ -1,32 +1,44 @@
-package com.autoshop.app;
+package com.autoshop.app.component;
 
+import com.autoshop.app.util.Theme;
 import com.toedter.calendar.JCalendar;
 import javax.swing.*;
 import java.awt.*;
-import java.util.Calendar;
 
 public class CalendarCustomizer {
 
     public static void styleCalendar(JCalendar calendar) {
         JPanel dayPanel = calendar.getDayChooser().getDayPanel();
 
-        // 1. Reset Body Logic
-        calendar.getDayChooser().setDecorationBackgroundVisible(true);
+        // 1. Apply Theme Backgrounds
+        calendar.setBackground(Theme.OFF_WHITE);
+        dayPanel.setBackground(Theme.OFF_WHITE);
+        calendar.getDayChooser().setBackground(Theme.OFF_WHITE);
+        calendar.getMonthChooser().setBackground(Theme.OFF_WHITE);
+        calendar.getYearChooser().setBackground(Theme.OFF_WHITE);
 
-        // 2. Fonts & Sizes
+        // 2. Header Colors (Black text for days, Red for Sunday)
+        calendar.getDayChooser().setDecorationBackgroundVisible(true);
+        calendar.getDayChooser().setDecorationBackgroundColor(Theme.OFF_WHITE);
+        calendar.getDayChooser().setWeekdayForeground(Theme.BLACK);
+        calendar.getDayChooser().setSundayForeground(Theme.RED);
+
+        // 3. Fonts & Sizes
         Font headerFont = new Font("SansSerif", Font.BOLD, 16);
         Dimension comboSize = new Dimension(150, 35);
         Dimension spinnerSize = new Dimension(100, 35);
 
-        // --- 3. STYLE MONTH CHOOSER ---
+        // --- STYLE MONTH CHOOSER ---
         JPanel monthPanel = (JPanel) calendar.getMonthChooser();
+        monthPanel.setBackground(Theme.OFF_WHITE);
         monthPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 25));
 
         JComboBox<?> monthCombo = (JComboBox<?>) calendar.getMonthChooser().getComboBox();
         monthCombo.setFont(headerFont);
         monthCombo.setPreferredSize(comboSize);
+        monthCombo.setBackground(Theme.WHITE);
 
-        // THE FIX FOR MONTHS: Custom Renderer to Capitalize
+        // Custom Renderer for Capitalization + Center Alignment
         monthCombo.setRenderer(new DefaultListCellRenderer() {
             @Override
             public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
@@ -34,98 +46,52 @@ public class CalendarCustomizer {
                 l.setFont(headerFont);
                 l.setHorizontalAlignment(SwingConstants.CENTER);
 
-                // CAPITALIZE TEXT
+                // Capitalize Text (e.g., "decembrie" -> "Decembrie")
                 String text = l.getText();
-                if (text != null && !text.isEmpty()) {
+                if (text != null && !text.isEmpty())
                     l.setText(text.substring(0, 1).toUpperCase() + text.substring(1));
-                }
                 return l;
             }
         });
 
-        // --- 4. STYLE YEAR CHOOSER ---
+        // --- STYLE YEAR CHOOSER ---
         JPanel yearPanel = (JPanel) calendar.getYearChooser();
         yearPanel.setPreferredSize(spinnerSize);
+        yearPanel.setBackground(Theme.OFF_WHITE);
+
         JSpinner yearSpinner = (JSpinner) calendar.getYearChooser().getSpinner();
         yearSpinner.setFont(headerFont);
         yearSpinner.setPreferredSize(spinnerSize);
         styleSpinnerTextField(yearSpinner, headerFont);
 
-        // --- 5. STYLE DAY NAMES (Sun, Mon, Tue...) ---
-        // These are usually JLabels inside the dayPanel (at the top)
-        // We iterate and force capitalization
+        // --- STYLE DAY NAMES (Sun, Mon...) ---
         for (Component comp : dayPanel.getComponents()) {
-            // Day Names are typically JLabels, Day Numbers are JButtons
+            // Day Names (Labels)
             if (comp instanceof JLabel) {
                 JLabel dayLabel = (JLabel) comp;
-                dayLabel.setFont(new Font("SansSerif", Font.BOLD, 12)); // Make header smaller/different if needed
-
+                dayLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
                 String text = dayLabel.getText();
-                if (text != null && !text.isEmpty()) {
+                if (text != null && !text.isEmpty())
                     dayLabel.setText(text.substring(0, 1).toUpperCase() + text.substring(1));
-                }
             }
             // Day Buttons
             else if (comp instanceof JButton) {
                 comp.setFont(new Font("SansSerif", Font.BOLD, 14));
-            }
-        }
-    }
-
-    public static void paintDates(JCalendar calendar) {
-        JPanel dayPanel = calendar.getDayChooser().getDayPanel();
-
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(calendar.getDate());
-        int currentMonth = cal.get(Calendar.MONTH);
-        int currentYear = cal.get(Calendar.YEAR);
-
-        // Borders
-        javax.swing.border.Border selectedBorder = BorderFactory.createLineBorder(new Color(52, 152, 219), 2);
-        javax.swing.border.Border emptyBorder = BorderFactory.createEmptyBorder(2, 2, 2, 2);
-
-        for (Component comp : dayPanel.getComponents()) {
-            if (comp instanceof JButton btn) {
-                String text = btn.getText();
-
-                if (text == null || text.trim().isEmpty() || !text.matches("\\d+")) {
-                    btn.setOpaque(false);
-                    btn.setContentAreaFilled(false);
-                    btn.setBorder(null);
-                    continue;
-                }
-
-                int day = Integer.parseInt(text);
-
-                btn.setContentAreaFilled(true);
-                btn.setOpaque(true);
-                btn.setBackground(null);
-                btn.setForeground(Color.BLACK);
-
-                // Apply Selection Border
-                Calendar selectedCal = Calendar.getInstance();
-                selectedCal.setTime(calendar.getDate());
-
-                if (selectedCal.get(Calendar.DAY_OF_MONTH) == day &&
-                        selectedCal.get(Calendar.MONTH) == currentMonth &&
-                        selectedCal.get(Calendar.YEAR) == currentYear) {
-                    btn.setBorder(selectedBorder);
-                } else {
-                    btn.setBorder(emptyBorder);
-                }
+                comp.setBackground(Theme.OFF_WHITE);
             }
         }
     }
 
     private static void styleSpinnerTextField(Container container, Font font) {
         for (Component comp : container.getComponents()) {
-            if (comp instanceof JTextField tf) {
+            if (comp instanceof JTextField) {
+                JTextField tf = (JTextField) comp;
                 tf.setFont(font);
                 tf.setHorizontalAlignment(SwingConstants.CENTER);
+                tf.setBackground(Theme.WHITE);
                 return;
-            } else if (comp instanceof Container) {
+            } else if (comp instanceof Container)
                 styleSpinnerTextField((Container) comp, font);
-            }
         }
     }
 
@@ -134,7 +100,8 @@ public class CalendarCustomizer {
         dateChooser.setFont(font);
 
         for (Component comp : dateChooser.getComponents()) {
-            if (comp instanceof JButton btn) {
+            if (comp instanceof JButton) {
+                JButton btn = (JButton) comp;
                 btn.setPreferredSize(new Dimension(30, 25));
             }
         }

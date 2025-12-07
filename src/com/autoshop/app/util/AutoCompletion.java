@@ -1,4 +1,4 @@
-package com.autoshop.app;
+package com.autoshop.app.util;
 
 import javax.swing.*;
 import java.awt.event.*;
@@ -9,10 +9,8 @@ public class AutoCompletion {
 
     public static void enable(JComboBox<String> comboBox) {
         final List<String> originalItems = new ArrayList<>();
-        for (int i = 0; i < comboBox.getItemCount(); i++) {
+        for (int i = 0; i < comboBox.getItemCount(); i++)
             originalItems.add(comboBox.getItemAt(i));
-        }
-
         final JTextField textEditor = (JTextField) comboBox.getEditor().getEditorComponent();
 
         // Listener for Typing (Filtering)
@@ -26,25 +24,20 @@ public class AutoCompletion {
                     List<String> filteredItems = new ArrayList<>();
 
                     // Filter Logic
-                    for (String item : originalItems) {
-                        if (item.toLowerCase().contains(currentText.toLowerCase())) {
+                    for (String item : originalItems)
+                        if (item.toLowerCase().contains(currentText.toLowerCase()))
                             filteredItems.add(item);
-                        }
-                    }
 
                     // Update Model
                     DefaultComboBoxModel<String> newModel = new DefaultComboBoxModel<>();
-                    for (String item : filteredItems) {
+                    for (String item : filteredItems)
                         newModel.addElement(item);
-                    }
                     comboBox.setModel(newModel);
                     textEditor.setText(currentText);
-
-                    if (!filteredItems.isEmpty()) {
+                    if (!filteredItems.isEmpty())
                         comboBox.showPopup();
-                    } else {
+                    else
                         comboBox.hidePopup();
-                    }
                 });
             }
 
