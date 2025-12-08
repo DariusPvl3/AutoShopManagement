@@ -135,7 +135,7 @@ public class AppointmentView extends JPanel {
         ButtonStyler.apply(addButton, Theme.RED);
 
         clearButton = new RoundedButton("Clear");
-        ButtonStyler.apply(clearButton, new Color(149, 165, 166));
+        ButtonStyler.apply(clearButton, Theme.GRAY);
 
         updateButton = new RoundedButton("Update Appointment");
         ButtonStyler.apply(updateButton, Theme.BLACK);
@@ -270,8 +270,7 @@ public class AppointmentView extends JPanel {
 
         int duplicateRow = findDuplicateRow(phone, plate, finalDate, desc);
         if (duplicateRow != -1) {
-            JOptionPane.showMessageDialog(this, LanguageHelper.getString("msg.err.duplicate"),
-                    LanguageHelper.getString("title.duplicate"), JOptionPane.ERROR_MESSAGE);
+            ThemedDialog.showMessage(this, LanguageHelper.getString("title.duplicate"), LanguageHelper.getString("msg.err.duplicate"));
             table.setRowSelectionInterval(duplicateRow, duplicateRow);
             table.scrollRectToVisible(table.getCellRect(duplicateRow, 0, true));
             return;
@@ -283,10 +282,10 @@ public class AppointmentView extends JPanel {
             DatabaseHelper.addAppointmentTransaction(newAppt);
             loadDataFromDB();
             clearInputs();
-            JOptionPane.showMessageDialog(this, LanguageHelper.getString("msg.success.add"));
+            ThemedDialog.showMessage(this, LanguageHelper.getString("title.success"), LanguageHelper.getString("msg.success.add"));
         } catch (SQLException e) {
             LOGGER.log(java.util.logging.Level.SEVERE, "Error adding", e);
-            JOptionPane.showMessageDialog(this, LanguageHelper.getString("msg.err.db") + e.getMessage());
+            ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("msg.err.db") + "\n" + e.getMessage());
         }
     }
 
@@ -294,9 +293,11 @@ public class AppointmentView extends JPanel {
         int selectedRow = table.getSelectedRow();
         if (selectedRow == -1) return;
 
-        int confirm = JOptionPane.showConfirmDialog(this, LanguageHelper.getString("msg.confirm.update"),
-                LanguageHelper.getString("title.confirm"), JOptionPane.YES_NO_OPTION);
-        if (confirm != JOptionPane.YES_OPTION) return;
+        boolean confirmed = ThemedDialog.showConfirm(this,
+                LanguageHelper.getString("title.confirm"),
+                LanguageHelper.getString("msg.confirm.update"));
+
+        if (!confirmed) return;
 
         if (validateAndFormatInput()) return;
 
@@ -316,29 +317,31 @@ public class AppointmentView extends JPanel {
             DatabaseHelper.updateAppointmentTransaction(appt);
             loadDataFromDB();
             clearInputs();
-            JOptionPane.showMessageDialog(this, LanguageHelper.getString("msg.success.update"));
+            ThemedDialog.showMessage(this, LanguageHelper.getString("title.success"), LanguageHelper.getString("msg.success.update"));
         } catch (SQLException e) {
-            JOptionPane.showMessageDialog(this, LanguageHelper.getString("msg.err.update") + " " + e.getMessage());
+            ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("msg.err.update") + " " + e.getMessage());
         }
     }
 
     private void deleteAppointment() {
         int selectedRow = table.getSelectedRow();
         if (selectedRow == -1) {
-            JOptionPane.showMessageDialog(this, LanguageHelper.getString("msg.err.select"));
+            ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("msg.err.select"));
             return;
         }
 
-        int response = JOptionPane.showConfirmDialog(this, LanguageHelper.getString("msg.confirm.delete"),
-                LanguageHelper.getString("title.confirm"), JOptionPane.YES_NO_OPTION);
+        // REPLACED: Confirm Dialog
+        boolean confirmed = ThemedDialog.showConfirm(this,
+                LanguageHelper.getString("title.confirm"),
+                LanguageHelper.getString("msg.confirm.delete"));
 
-        if (response == JOptionPane.YES_OPTION) {
+        if (confirmed) {
             try {
                 DatabaseHelper.deleteAppointment(appointmentList.get(selectedRow).getAppointmentID());
                 loadDataFromDB();
                 clearInputs();
             } catch (SQLException e) {
-                JOptionPane.showMessageDialog(this, LanguageHelper.getString("msg.err.delete") + " " + e.getMessage());
+                ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("msg.err.delete") + " " + e.getMessage());
             }
         }
     }
@@ -370,7 +373,7 @@ public class AppointmentView extends JPanel {
             refreshTable();
         } catch (SQLException e) {
             LOGGER.log(java.util.logging.Level.SEVERE, "Error loading DB", e);
-            JOptionPane.showMessageDialog(this, LanguageHelper.getString("msg.err.db") + e.getMessage());
+            ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("msg.err.db") + e.getMessage());
         }
     }
 
@@ -528,7 +531,7 @@ public class AppointmentView extends JPanel {
                     return;
                 }
             }
-            JOptionPane.showMessageDialog(this, LanguageHelper.getString("msg.err.not_found") + id + ")");
+            ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("msg.err.not_found") + " (ID: " + id + ")");
         });
     }
 
@@ -542,8 +545,7 @@ public class AppointmentView extends JPanel {
     }
 
     private void showError(String langKey) {
-        JOptionPane.showMessageDialog(this, LanguageHelper.getString(langKey),
-                LanguageHelper.getString("title.error"), JOptionPane.ERROR_MESSAGE);
+        ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString(langKey));
     }
 
     private void updateText() {

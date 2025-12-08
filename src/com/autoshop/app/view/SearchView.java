@@ -66,7 +66,7 @@ public class SearchView extends JPanel {
         searchField.setFont(INPUT_FONT);
 
         statusFilterBox = new JComboBox<>();
-        statusFilterBox.setRenderer(new StatusListRenderer()); // Ensure this class exists or defined below
+        statusFilterBox.setRenderer(new StatusListRenderer());
         statusFilterBox.setFont(INPUT_FONT);
         populateStatusBox();
 
@@ -77,7 +77,7 @@ public class SearchView extends JPanel {
         ButtonStyler.apply(searchButton, Theme.RED);
 
         resetButton = new RoundedButton("Reset");
-        ButtonStyler.apply(resetButton, new Color(149, 165, 166));
+        ButtonStyler.apply(resetButton, Theme.GRAY);
     }
 
     private JPanel createFilterPanel() {
@@ -126,12 +126,11 @@ public class SearchView extends JPanel {
             refreshTable();
 
             if (resultsList.isEmpty()) {
-                JOptionPane.showMessageDialog(this, LanguageHelper.getString("msg.err.not_found"),
-                        "Info", JOptionPane.INFORMATION_MESSAGE);
+                ThemedDialog.showMessage(this, "Info", LanguageHelper.getString("msg.err.search"));
             }
         } catch (Exception e) {
             e.printStackTrace();
-            JOptionPane.showMessageDialog(this, "Search Error: " + e.getMessage());
+            ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("msg.err.search"));
         }
     }
 

@@ -4,10 +4,14 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Properties;
+import java.util.prefs.Preferences;
 
 public class PreferencesHelper {
+    private static final Preferences prefs = Preferences.userNodeForPackage(PreferencesHelper.class);
     private static final String CONFIG_FILE = "config.properties";
     private static final String KEY_LANGUAGE = "app.language";
+
+    // --- LANGUAGE PREFERENCES ---
 
     // Save "en" or "ro" to file
     public static void saveLanguage(String langCode) {
@@ -31,5 +35,23 @@ public class PreferencesHelper {
         } catch (IOException e) {
             return "en"; // File doesn't exist yet
         }
+    }
+
+    // --- NOTIFICATION PREFERENCES ---
+
+    public static boolean isNotificationEnabled() {
+        return prefs.getBoolean("notif_enabled", true); // Default to ON
+    }
+
+    public static void setNotificationEnabled(boolean enabled) {
+        prefs.putBoolean("notif_enabled", enabled);
+    }
+
+    public static int getNotificationLeadTime() {
+        return prefs.getInt("notif_lead_time", 15); // Default 15 minutes
+    }
+
+    public static void setNotificationLeadTime(int minutes) {
+        prefs.putInt("notif_lead_time", minutes);
     }
 }

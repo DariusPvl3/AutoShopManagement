@@ -2,6 +2,7 @@ package com.autoshop.app.view;
 
 import com.autoshop.app.component.ButtonStyler;
 import com.autoshop.app.component.CustomTitleBar;
+import com.autoshop.app.component.NotificationService;
 import com.autoshop.app.component.RoundedButton;
 import com.autoshop.app.util.DatabaseHelper;
 import com.autoshop.app.util.LanguageHelper;
@@ -72,7 +73,7 @@ public class MainFrame extends JFrame {
         JPanel topSection = new JPanel(new BorderLayout());
 
         // A. Title Bar
-        topSection.add(new CustomTitleBar(this, "AutoShop Scheduler V1.3.3"), BorderLayout.NORTH);
+        topSection.add(new CustomTitleBar(this, "AutoShop Scheduler V1.3.4"), BorderLayout.NORTH);
 
         // B. Menu
         JPanel menuPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 10));
@@ -171,6 +172,8 @@ public class MainFrame extends JFrame {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
                 DatabaseHelper.createNewTable();
                 DatabaseHelper.autoUpdateStatuses();
+
+                NotificationService.start();
 
                 String lang = PreferencesHelper.loadLanguage();
                 LanguageHelper.setLocale("ro".equals(lang) ? new Locale("ro") : Locale.ENGLISH);

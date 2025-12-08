@@ -1,10 +1,6 @@
 package com.autoshop.app.view;
 
-import com.autoshop.app.component.CalendarCustomizer;
-import com.autoshop.app.component.DigitalClock;
-import com.autoshop.app.component.StatusCellRenderer;
-import com.autoshop.app.component.StatusMenuHelper;
-import com.autoshop.app.component.SwingTableStyler;
+import com.autoshop.app.component.*;
 import com.autoshop.app.model.Appointment;
 import com.autoshop.app.util.DatabaseHelper;
 import com.autoshop.app.util.LanguageHelper;
@@ -258,7 +254,7 @@ public class DashboardView extends JPanel {
 
         } catch (SQLException e) {
             LOGGER.log(java.util.logging.Level.SEVERE, "Error loading dashboard", e);
-            JOptionPane.showMessageDialog(this, "Database Error: " + e.getMessage());
+            ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), "Database Error: " + e.getMessage());
         }
     }
 

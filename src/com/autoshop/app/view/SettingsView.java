@@ -1,7 +1,9 @@
 package com.autoshop.app.view;
 
 import com.autoshop.app.component.ButtonStyler;
+import com.autoshop.app.component.RedCheckBox;
 import com.autoshop.app.component.RoundedButton;
+import com.autoshop.app.component.ThemedDialog; // Make sure this is imported
 import com.autoshop.app.util.LanguageHelper;
 import com.autoshop.app.util.PreferencesHelper;
 import com.autoshop.app.util.Theme;
@@ -16,13 +18,16 @@ import java.util.Locale;
 
 public class SettingsView extends JPanel {
 
-    private static final Color GRAY_BTN = new Color(149, 165, 166);
     private static final Font TITLE_FONT = new Font("SansSerif", Font.BOLD, 24);
     private static final Font BORDER_FONT = new Font("SansSerif", Font.BOLD, 18);
 
     private JLabel titleLabel;
     private JButton backupBtn, restoreBtn, btnEn, btnRo;
     private JPanel dataPanel, langPanel;
+    private JPanel notifPanel;
+    private JCheckBox enableNotifBox;
+    private JSpinner timeSpinner;
+    private JLabel minsLabel;
 
     public SettingsView() {
         setLayout(new BorderLayout(0, 0));
@@ -55,12 +60,13 @@ public class SettingsView extends JPanel {
     }
 
     private JPanel createContent() {
-        JPanel content = new JPanel(new GridLayout(2, 1, 0, 20));
+        JPanel content = new JPanel(new GridLayout(3, 1, 0, 20)); // Changed rows to 3
         content.setBackground(Theme.OFF_WHITE);
         content.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
         content.add(createDataPanel());
         content.add(createLanguagePanel());
+        content.add(createNotificationPanel());
 
         JPanel wrapper = new JPanel(new BorderLayout());
         wrapper.setBackground(Theme.OFF_WHITE);
@@ -70,10 +76,10 @@ public class SettingsView extends JPanel {
 
     private JPanel createDataPanel() {
         dataPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 20));
-        dataPanel.setBackground(Theme.WHITE);
+        dataPanel.setBackground(Theme.OFF_WHITE);
 
         backupBtn = new RoundedButton("Backup");
-        ButtonStyler.apply(backupBtn, GRAY_BTN);
+        ButtonStyler.apply(backupBtn, Theme.GRAY);
 
         restoreBtn = new RoundedButton("Restore");
         ButtonStyler.apply(restoreBtn, Theme.RED);
@@ -85,22 +91,62 @@ public class SettingsView extends JPanel {
 
     private JPanel createLanguagePanel() {
         langPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 20));
-        langPanel.setBackground(Theme.WHITE);
+        langPanel.setBackground(Theme.OFF_WHITE);
 
         btnEn = new RoundedButton("English");
         btnRo = new RoundedButton("Română");
 
+        // Ensure these paths are correct in your project structure
         btnEn.setIcon(Utils.loadIcon("/resources/uk.png", 24, 16));
         btnRo.setIcon(Utils.loadIcon("/resources/ro.png", 24, 22));
         btnEn.setIconTextGap(10);
         btnRo.setIconTextGap(10);
 
-        ButtonStyler.apply(btnEn, GRAY_BTN);
-        ButtonStyler.apply(btnRo, GRAY_BTN);
+        ButtonStyler.apply(btnEn, Theme.GRAY);
+        ButtonStyler.apply(btnRo, Theme.GRAY);
 
         langPanel.add(btnEn);
         langPanel.add(btnRo);
         return langPanel;
+    }
+
+    private JPanel createNotificationPanel() {
+        notifPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 20));
+        notifPanel.setBackground(Theme.OFF_WHITE);
+
+        // Using your Custom RedCheckBox
+        enableNotifBox = new RedCheckBox("Enable Alerts");
+        enableNotifBox.setSelected(PreferencesHelper.isNotificationEnabled());
+
+        int savedTime = PreferencesHelper.getNotificationLeadTime();
+        timeSpinner = new JSpinner(new SpinnerNumberModel(savedTime, 1, 120, 1));
+        timeSpinner.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        timeSpinner.setPreferredSize(new Dimension(60, 30));
+        Utils.addMouseScrollToSpinner(timeSpinner);
+
+        minsLabel = new JLabel("minutes before");
+        minsLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+
+        notifPanel.add(enableNotifBox);
+        notifPanel.add(Box.createHorizontalStrut(20));
+        notifPanel.add(timeSpinner);
+        notifPanel.add(minsLabel);
+
+        enableNotifBox.addActionListener(e -> {
+            boolean isSelected = enableNotifBox.isSelected();
+            PreferencesHelper.setNotificationEnabled(isSelected);
+            timeSpinner.setEnabled(isSelected);
+        });
+
+        timeSpinner.addChangeListener(e -> {
+            int val = (Integer) timeSpinner.getValue();
+            PreferencesHelper.setNotificationLeadTime(val);
+        });
+
+        // Initial State
+        timeSpinner.setEnabled(enableNotifBox.isSelected());
+
+        return notifPanel;
     }
 
     // --- LOGIC ---
@@ -109,35 +155,44 @@ public class SettingsView extends JPanel {
         String defaultName = "appointments_backup_" + Utils.getCurrentTimeStamp() + ".db";
         JFileChooser chooser = new JFileChooser();
         chooser.setSelectedFile(new File(defaultName));
-        chooser.setDialogTitle("Save Backup File");
+        chooser.setDialogTitle(LanguageHelper.getString("title.backup")); // Localized title
 
         if (chooser.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
             try {
                 Utils.copyFile(new File("appointments.db"), chooser.getSelectedFile());
-                JOptionPane.showMessageDialog(this, "Backup created successfully!");
+                ThemedDialog.showMessage(this, LanguageHelper.getString("title.success"), LanguageHelper.getString("backup.success"));
             } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this, "Backup Failed: " + ex.getMessage());
+                ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("backup.error"));
             }
         }
     }
 
     private void performRestore() {
-        int confirm = JOptionPane.showConfirmDialog(this,
-                "WARNING: Restoring will DELETE all current data.\nAre you sure?",
-                "Confirm Restore", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        // --- CHANGED: Now using ThemedDialog instead of JOptionPane ---
+        // Note: You should add "msg.warn.restore" to your language files
+        // English: "WARNING: Restoring will DELETE all current data.\nAre you sure?"
+        // Romanian: "ATENȚIE: Restaurarea va ȘTERGE toate datele curente.\nSunteți sigur?"
 
-        if (confirm != JOptionPane.YES_OPTION) return;
+        boolean confirmed = ThemedDialog.showConfirm(this,
+                LanguageHelper.getString("title.confirm"),
+                LanguageHelper.getString("msg.warn.restore"));
+
+        if (!confirmed) return; // Stop if user clicked "No"
 
         JFileChooser chooser = new JFileChooser();
-        chooser.setDialogTitle("Select Backup File");
+        chooser.setDialogTitle(LanguageHelper.getString("title.restore"));
 
         if (chooser.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             try {
                 Utils.copyFile(chooser.getSelectedFile(), new File("appointments.db"));
-                JOptionPane.showMessageDialog(this, "Restore Successful!\nPlease restart the app.");
+
+                // Success message
+                ThemedDialog.showMessage(this, LanguageHelper.getString("title.success"), LanguageHelper.getString("restore.success"));
+
+                // Close app to force reload of DB connection
                 System.exit(0);
             } catch (IOException ex) {
-                JOptionPane.showMessageDialog(this, "Restore Failed: " + ex.getMessage());
+                ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("restore.error"));
             }
         }
     }
@@ -151,10 +206,10 @@ public class SettingsView extends JPanel {
     private void highlightLanguage(String lang) {
         if ("ro".equals(lang)) {
             ButtonStyler.apply(btnRo, Theme.RED);
-            ButtonStyler.apply(btnEn, GRAY_BTN);
+            ButtonStyler.apply(btnEn, Theme.GRAY);
         } else {
             ButtonStyler.apply(btnEn, Theme.RED);
-            ButtonStyler.apply(btnRo, GRAY_BTN);
+            ButtonStyler.apply(btnRo, Theme.GRAY);
         }
     }
 
@@ -174,6 +229,10 @@ public class SettingsView extends JPanel {
 
         setPanelBorder(dataPanel, LanguageHelper.getString("lbl.data_mng"));
         setPanelBorder(langPanel, LanguageHelper.getString("lbl.language"));
+        setPanelBorder(notifPanel, LanguageHelper.getString("lbl.notifications"));
+
+        enableNotifBox.setText(LanguageHelper.getString("lbl.enable_alerts"));
+        minsLabel.setText(LanguageHelper.getString("lbl.minutes_before"));
     }
 
     private void setPanelBorder(JPanel panel, String title) {
