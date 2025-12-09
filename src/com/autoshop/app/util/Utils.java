@@ -64,20 +64,55 @@ public class Utils {
 
     public static void addMouseScrollToSpinner(JSpinner spinner) {
         spinner.addMouseWheelListener(e -> {
-            if (spinner.isEnabled()) {
-                // Determine direction
-                int rotation = e.getWheelRotation();
+            JComponent editor = spinner.getEditor();
+            if (editor instanceof JSpinner.DefaultEditor) {
+                // Focus the field so changes commit immediately
+                ((JSpinner.DefaultEditor) editor).getTextField().requestFocusInWindow();
+            }
 
-                // Determine step (Hour or Minute?)
-                // Default to 15 minutes per scroll for speed
-                int step = (rotation < 0) ? 1 : -1;
+            // Get the current value
+            Object value = spinner.getValue();
 
-                // Manually adjust the date
-                Date current = (Date) spinner.getValue();
+            // Check direction: -1 is Up (Next), 1 is Down (Previous)
+            int rotation = e.getWheelRotation();
+
+            // --- DATE MODEL LOGIC ---
+            if (value instanceof Date) {
                 Calendar cal = Calendar.getInstance();
-                cal.setTime(current);
-                cal.add(Calendar.MINUTE, step * 15); // Jump 15 mins
+                cal.setTime((Date) value);
+
+                // If scrolling UP (negative), add minutes. If DOWN, subtract.
+                int minutesToAdd = (rotation < 0) ? 1 : -1;
+                cal.add(Calendar.MINUTE, minutesToAdd);
+
                 spinner.setValue(cal.getTime());
+            }
+            // --- NUMBER MODEL LOGIC ---
+            else if (value instanceof Number) {
+                // Determine step size (default to 1 if we can't find it)
+                Number stepSize = 1;
+                if (spinner.getModel() instanceof SpinnerNumberModel) {
+                    stepSize = ((SpinnerNumberModel) spinner.getModel()).getStepSize();
+                }
+
+                // Calculate next value based on step type (Integer vs Double)
+                if (value instanceof Integer) {
+                    int current = (Integer) value;
+                    int step = stepSize.intValue();
+                    int next = (rotation < 0) ? current + step : current - step;
+
+                    // Safety: Check constraints if available
+                    if (spinner.getModel() instanceof SpinnerNumberModel) {
+                        SpinnerNumberModel model = (SpinnerNumberModel) spinner.getModel();
+                        Comparable max = model.getMaximum();
+                        Comparable min = model.getMinimum();
+
+                        if (max != null && next > (Integer) max) next = (Integer) max;
+                        if (min != null && next < (Integer) min) next = (Integer) min;
+                    }
+                    spinner.setValue(next);
+                }
+                // Add Double/Float support here if you ever need it
             }
         });
     }

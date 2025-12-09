@@ -7,6 +7,34 @@ import java.util.List;
 
 public class AutoCompletion {
 
+    public static void enable(JComboBox<String> comboBox, SuggestionProvider provider) {
+        final List<String> originalItems = new ArrayList<>();
+        for(int i=0;i<comboBox.getItemCount();i++)
+            originalItems.add(comboBox.getItemAt(i));
+        final JTextField textEditor = (JTextField) comboBox.getEditor().getEditorComponent();
+
+        textEditor.addKeyListener(new KeyAdapter() {
+            @Override
+            public void keyReleased(KeyEvent e) {
+                if(isNavigationKey(e)) return;
+                SwingUtilities.invokeLater(() -> {
+                    String currentText = textEditor.getText();
+                    List<String> filteredItems = provider.fetchSuggestions(currentText);
+
+                    DefaultComboBoxModel<String> newModel = new DefaultComboBoxModel<>();
+                    for (String item : filteredItems)
+                        newModel.addElement(item);
+                    comboBox.setModel(newModel);
+                    textEditor.setText(currentText);
+                    if (!filteredItems.isEmpty())
+                        comboBox.showPopup();
+                    else
+                        comboBox.hidePopup();
+                });
+            }
+        });
+    }
+
     public static void enable(JComboBox<String> comboBox) {
         final List<String> originalItems = new ArrayList<>();
         for (int i = 0; i < comboBox.getItemCount(); i++)
@@ -63,4 +91,9 @@ public class AutoCompletion {
                 e.getKeyCode() == KeyEvent.VK_LEFT ||
                 e.getKeyCode() == KeyEvent.VK_RIGHT;
     }
+
+    public interface SuggestionProvider {
+        List<String> fetchSuggestions(String inputText);
+    }
 }
+

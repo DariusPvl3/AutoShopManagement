@@ -2,6 +2,8 @@ package com.autoshop.app.view;
 
 import com.autoshop.app.component.*;
 import com.autoshop.app.model.Appointment;
+import com.autoshop.app.model.Car;
+import com.autoshop.app.model.Client;
 import com.autoshop.app.util.*;
 import com.toedter.calendar.JDateChooser;
 
@@ -16,11 +18,12 @@ import java.io.File;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.List;
 
 public class AppointmentView extends JPanel {
     private static final java.util.logging.Logger LOGGER = java.util.logging.Logger.getLogger(AppointmentView.class.getName());
     private static final Font LABEL_FONT = new Font("SansSerif", Font.BOLD, 12);
-    private static final Font INPUT_FONT = new Font("SansSerif", Font.PLAIN, 16);
+    private static final Font INPUT_FONT = new Font("SansSerif", Font.PLAIN, 14);
 
     private final ArrayList<Appointment> appointmentList = new ArrayList<>();
     private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
@@ -29,22 +32,66 @@ public class AppointmentView extends JPanel {
     private JTable table;
     private JPanel clientPanel, carPanel, appointmentPanel;
 
-    private JTextField nameField, phoneField, carLicensePlateField, carModelField, carYearField, problemDescriptionField;
-    private JComboBox<String> carBrandBox;
-    private JButton selectPhotoButton, addButton, clearButton, updateButton, deleteButton;
+    private JTextField problemDescriptionField;
+    private JComboBox<String> nameField, phoneField, carLicensePlateField, carModelField, carBrandBox;
+    private JButton selectPhotoButton, viewPhotoButton, addButton, clearButton, updateButton, deleteButton;
     private String currentPhotoPath = "";
     private JLabel photoLabel;
     private JDateChooser dateChooser;
-    private JSpinner timeSpinner;
+    private JSpinner timeSpinner, carYearField;
+    private JTextArea repairsField, partsUsedField, observationsField;
 
-    private JLabel nameLabel, phoneLabel, plateLabel, brandLabel, modelLabel, yearLabel, photoTitleLabel, dateLabel, problemLabel, atLabel;
+    private JLabel nameLabel, phoneLabel, plateLabel, brandLabel, modelLabel, yearLabel, photoTitleLabel, dateLabel, problemLabel, repairsLabel, partsUsedLabel, observationsLabel, atLabel;
 
     public AppointmentView() {
         setLayout(new BorderLayout());
         initializeComponents();
-        add(createInputPanel(), BorderLayout.NORTH);
-        add(createTablePanel(), BorderLayout.CENTER);
-        add(createBottomPanel(), BorderLayout.SOUTH);
+
+        // --- MAIN LAYOUT (Vertical Split) ---
+        // Top Half: Input Forms
+        // Bottom Half: Table
+
+        // 1. Wrapper for all Forms
+        JPanel formsWrapper = new JPanel();
+        formsWrapper.setLayout(new BoxLayout(formsWrapper, BoxLayout.Y_AXIS));
+        formsWrapper.setBackground(Theme.OFF_WHITE);
+
+        // A. Top Row (Client & Car)
+        JPanel topRow = new JPanel(new GridLayout(1, 2, 20, 0)); // 1 Row, 2 Cols, 20px gap
+        topRow.setBackground(Theme.OFF_WHITE);
+        topRow.setBorder(BorderFactory.createEmptyBorder(10, 10, 5, 10)); // Padding
+
+        clientPanel = createClientPanel();
+        carPanel = createCarPanel();
+
+        topRow.add(clientPanel);
+        topRow.add(carPanel);
+
+        // B. Appointment Panel (Includes Buttons)
+        appointmentPanel = createAppointmentPanel();
+
+        // Add to wrapper
+        formsWrapper.add(topRow);
+        formsWrapper.add(appointmentPanel);
+
+        // 2. Split Pane Setup
+        JSplitPane splitPane = new JSplitPane(JSplitPane.VERTICAL_SPLIT);
+
+        // Wrap forms in ScrollPane (in case screen is small verticaly)
+        JScrollPane formScroll = new JScrollPane(formsWrapper);
+        formScroll.setBorder(null);
+        formScroll.getVerticalScrollBar().setUnitIncrement(16);
+        formScroll.setMinimumSize(new Dimension(200, 200));
+
+        splitPane.setTopComponent(formScroll);
+        splitPane.setBottomComponent(createTablePanel());
+
+        // Give the forms enough space, leave the rest for table
+        splitPane.setDividerSize(20);
+        splitPane.setDividerLocation(600);
+        splitPane.setResizeWeight(0.0); // Table gets the resize priority
+
+        add(splitPane, BorderLayout.CENTER);
 
         setupListeners();
         setUpShortcuts();
@@ -77,6 +124,9 @@ public class AppointmentView extends JPanel {
         photoTitleLabel = createLabel();
         dateLabel = createLabel();
         problemLabel = createLabel();
+        repairsLabel = createLabel();
+        partsUsedLabel = createLabel();
+        observationsLabel = createLabel();
         atLabel = createLabel();
 
         photoLabel = new JLabel("No Photo Selected");
@@ -84,12 +134,88 @@ public class AppointmentView extends JPanel {
     }
 
     private void initInputs() {
-        nameField = createTextField();
-        phoneField = createTextField();
-        carLicensePlateField = createTextField();
-        carModelField = createTextField();
+        nameField = new JComboBox<>();
+        phoneField = new JComboBox<>();
+        carLicensePlateField = new  JComboBox<>();
+        carModelField = new  JComboBox<>();
         problemDescriptionField = createTextField();
-        carYearField = createTextField();
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+        SpinnerNumberModel yearModel = new SpinnerNumberModel(currentYear, 1900, currentYear + 1, 1);
+        carYearField = new JSpinner(yearModel);
+        JSpinner.NumberEditor editor = new JSpinner.NumberEditor(carYearField, "#");
+        carYearField.setEditor(editor);
+        styleSpinner(carYearField);
+
+        styleComboBox(nameField);
+        styleComboBox(phoneField);
+        styleComboBox(carLicensePlateField);
+        styleComboBox(carModelField);
+
+        AutoCompletion.enable(nameField, text -> {
+            try {
+                List<Client> clients = DatabaseHelper.getClientsByName(text);
+                List<String> names = new ArrayList<>();
+                for (Client client : clients) {
+                    names.add(client.getClientName());
+                }
+                return names;
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+                return new ArrayList<>();
+            }
+        });
+        nameField.setEditable(true);
+        AutoCompletion.enable(phoneField, text -> {
+            try {
+                List<Client> clients = DatabaseHelper.getClientsByPhone(text);
+                List<String> phones = new ArrayList<>();
+                for (Client client : clients) {
+                    phones.add(client.getClientPhone());
+                }
+                return phones;
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+                return new ArrayList<>();
+            }
+        });
+        phoneField.setEditable(true);
+        AutoCompletion.enable(carLicensePlateField, text -> {
+            try {
+                List<Car> cars = DatabaseHelper.getCarDetailsByPlate(text);
+                List<String> plates = new ArrayList<>();
+                for (Car car : cars) {
+                    plates.add(car.getLicensePlate());
+                }
+                return plates;
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+                return new ArrayList<>();
+            }
+        });
+        carLicensePlateField.setEditable(true);
+        AutoCompletion.enable(carModelField, text -> {
+            try {
+                Object selectedBrandObj = carBrandBox.getSelectedItem();
+                String selectedBrand = (selectedBrandObj != null) ? selectedBrandObj.toString() : "";
+                if (selectedBrand.isEmpty()) return new ArrayList<>();
+                List<Car> cars = DatabaseHelper.getCarModelsByBrand(selectedBrand, text);
+                List<String> models = new ArrayList<>();
+                for (Car car : cars) {
+                    if (!models.contains(car.getCarModel())) {
+                        models.add(car.getCarModel());
+                    }
+                }
+                return models;
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+                return new ArrayList<>();
+            }
+        });
+        carModelField.setEditable(true);
+
+        repairsField = createTextArea();
+        partsUsedField = createTextArea();
+        observationsField = createTextArea();
 
         String[] carBrands = {"Audi", "BMW", "Chevrolet", "Citroen", "Dacia", "Fiat", "Ford", "Honda",
                 "Hyundai", "Jeep", "Kia", "Land Rover", "Mazda", "Mercedes", "Mitsubishi",
@@ -97,10 +223,15 @@ public class AppointmentView extends JPanel {
                 "Tesla", "Toyota", "Volkswagen", "Volvo"};
         carBrandBox = new JComboBox<>(carBrands);
         carBrandBox.setEditable(true);
-        carBrandBox.setFont(INPUT_FONT);
+        styleComboBox(carBrandBox);
         AutoCompletion.enable(carBrandBox);
 
-        selectPhotoButton = new JButton("Select Photo");
+        selectPhotoButton = new RoundedButton("Select Photo");
+        ButtonStyler.apply(selectPhotoButton, Theme.RED);
+
+        viewPhotoButton = new RoundedButton("View Photo");
+        ButtonStyler.apply(viewPhotoButton, Theme.GRAY);
+        viewPhotoButton.setEnabled(false);
 
         dateChooser = new JDateChooser();
         dateChooser.setDate(new Date());
@@ -119,149 +250,196 @@ public class AppointmentView extends JPanel {
         JSpinner.DateEditor timeEditor = new JSpinner.DateEditor(timeSpinner, "HH:mm");
         timeSpinner.setEditor(timeEditor);
         timeSpinner.setPreferredSize(new Dimension(80, 25));
-        timeSpinner.setFont(INPUT_FONT);
-
-        JFormattedTextField tf = ((JSpinner.DefaultEditor) timeSpinner.getEditor()).getTextField();
-        tf.setEditable(true);
-        tf.setHorizontalAlignment(JTextField.CENTER);
-        tf.setFont(INPUT_FONT);
-
-        timeSpinner.setValue(new Date());
-        Utils.addMouseScrollToSpinner(timeSpinner);
+        styleSpinner(timeSpinner);
     }
 
     private void initButtons() {
-        addButton = new RoundedButton("Add Appointment");
+        addButton = new RoundedButton("Add");
         ButtonStyler.apply(addButton, Theme.RED);
 
         clearButton = new RoundedButton("Clear");
         ButtonStyler.apply(clearButton, Theme.GRAY);
 
-        updateButton = new RoundedButton("Update Appointment");
+        updateButton = new RoundedButton("Update");
         ButtonStyler.apply(updateButton, Theme.BLACK);
         updateButton.setEnabled(false);
 
-        deleteButton = new RoundedButton("Delete Appointment");
+        deleteButton = new RoundedButton("Delete");
         ButtonStyler.apply(deleteButton, Theme.RED);
     }
 
     private void initTable() {
-        String[] columns = {"Client Name", "Phone", "License Plate", "Brand", "Model", "Year", "Date", "Description", "Status"};
+        String[] columns = {"Client Name", "Phone", "License Plate", "Brand", "Model", "Year", "Date", "Description", "Repairs", "Parts used", "Observations", "Status"};
         tableModel = new DefaultTableModel(columns, 0);
-        table = SwingTableStyler.create(tableModel, 8);
-        table.getColumnModel().getColumn(8).setCellRenderer(new StatusCellRenderer());
+        table = SwingTableStyler.create(tableModel, 11);
+        table.getColumnModel().getColumn(11).setCellRenderer(new StatusCellRenderer());
     }
 
-    // --- VIEW CONSTRUCTION ---
+    // --- PANEL CREATION (The Key Changes) ---
 
-    private JPanel createInputPanel() {
-        JPanel mainPanel = new JPanel(new GridLayout(1, 3, 15, 0));
-        mainPanel.setBackground(Theme.BLACK);
-        mainPanel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
+    private JPanel createClientPanel() {
+        // Simple Grid for Name/Phone
+        JPanel panel = new JPanel(new GridLayout(2, 1, 0, 20));
+        panel.setBackground(Theme.WHITE);
+        panel.setBorder(createStyledBorder("sect.client"));
 
-        // 1. Client Card
-        clientPanel = setupCardPanel();
-        addLabeledComponent(clientPanel, nameLabel, nameField);
-        clientPanel.add(Box.createVerticalStrut(15));
-        addLabeledComponent(clientPanel, phoneLabel, phoneField);
-        clientPanel.add(Box.createVerticalGlue());
+        panel.add(createFieldGroup(nameLabel, nameField));
+        panel.add(createFieldGroup(phoneLabel, phoneField));
 
-        // 2. Car Card
-        carPanel = setupCardPanel();
-        addLabeledComponent(carPanel, brandLabel, carBrandBox);
-        carPanel.add(Box.createVerticalStrut(15));
-        addLabeledComponent(carPanel, modelLabel, carModelField);
-        carPanel.add(Box.createVerticalStrut(15));
-        addLabeledComponent(carPanel, plateLabel, carLicensePlateField);
-        carPanel.add(Box.createVerticalStrut(15));
-        addLabeledComponent(carPanel, yearLabel, carYearField);
-        carPanel.add(Box.createVerticalStrut(15));
+        return panel;
+    }
 
-        JPanel photoPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
-        photoPanel.setBackground(Theme.WHITE);
-        photoPanel.add(selectPhotoButton);
-        photoPanel.add(photoLabel);
-        photoPanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+    private JPanel createCarPanel() {
+        // GridBagLayout to align specific pairs
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(Theme.WHITE);
+        panel.setBorder(createStyledBorder("sect.car"));
 
-        addCentered(carPanel, photoTitleLabel);
-        carPanel.add(Box.createVerticalStrut(5));
-        addCentered(carPanel, photoPanel);
-        carPanel.add(Box.createVerticalGlue());
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(5, 10, 5, 10);
+        gbc.fill = GridBagConstraints.HORIZONTAL;
 
-        // 3. Appointment Card
-        appointmentPanel = setupCardPanel();
-        JPanel dateTimePanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 15, 0));
-        dateTimePanel.setBackground(Theme.WHITE);
-        dateTimePanel.add(dateChooser);
-        dateTimePanel.add(atLabel);
-        dateTimePanel.add(timeSpinner);
-        dateTimePanel.setMaximumSize(new Dimension(Integer.MAX_VALUE, 35));
-        dateTimePanel.setPreferredSize(new Dimension(300, 35));
+        // Row 0: Brand | Model
+        gbc.gridy = 0;
+        gbc.gridx = 0; gbc.weightx = 0.5; panel.add(createFieldGroup(brandLabel, carBrandBox), gbc);
+        gbc.gridx = 1; gbc.weightx = 0.5; panel.add(createFieldGroup(modelLabel, carModelField), gbc);
 
-        addCentered(appointmentPanel, dateLabel);
-        appointmentPanel.add(Box.createVerticalStrut(5));
-        addCentered(appointmentPanel, dateTimePanel);
-        appointmentPanel.add(Box.createVerticalStrut(15));
-        addLabeledComponent(appointmentPanel, problemLabel, problemDescriptionField);
-        appointmentPanel.add(Box.createVerticalStrut(30));
+        // Row 1: License Plate | Year
+        gbc.gridy = 1;
+        gbc.gridx = 0; panel.add(createFieldGroup(plateLabel, carLicensePlateField), gbc);
+        gbc.gridx = 1; panel.add(createFieldGroup(yearLabel, carYearField), gbc);
 
-        JPanel buttonContainer = new JPanel(new GridLayout(1, 2, 10, 0));
-        buttonContainer.setBackground(Theme.WHITE);
-        buttonContainer.add(addButton);
-        buttonContainer.add(clearButton);
-        buttonContainer.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
-        addCentered(appointmentPanel, buttonContainer);
-        appointmentPanel.add(Box.createVerticalGlue());
+        // Row 2: Photo (Centered, Span 2)
+        gbc.gridy = 2;
+        gbc.gridx = 0; gbc.gridwidth = 2;
 
-        mainPanel.add(clientPanel);
-        mainPanel.add(carPanel);
-        mainPanel.add(appointmentPanel);
-        return mainPanel;
+        JPanel photoGroup = new JPanel(new FlowLayout(FlowLayout.CENTER));
+        photoGroup.setBackground(Theme.WHITE);
+        photoGroup.add(selectPhotoButton);
+        photoGroup.add(viewPhotoButton);
+        photoLabel.setFont(INPUT_FONT);
+        photoGroup.add(photoLabel);
+
+        JPanel wrapper = new JPanel(new BorderLayout());
+        wrapper.setBackground(Theme.WHITE);
+        photoTitleLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        wrapper.add(photoTitleLabel, BorderLayout.NORTH);
+        wrapper.add(photoGroup, BorderLayout.CENTER);
+
+        panel.add(wrapper, gbc);
+
+        return panel;
+    }
+
+    private JPanel createAppointmentPanel() {
+        JPanel panel = new JPanel(new GridBagLayout());
+        panel.setBackground(Theme.WHITE);
+        // Use EmptyBorder for outer padding, StyledBorder for title
+        panel.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createEmptyBorder(0, 10, 10, 10),
+                createStyledBorder("sect.appointment")
+        ));
+
+        GridBagConstraints gbc = new GridBagConstraints();
+        gbc.insets = new Insets(10, 15, 10, 15); // Good spacing
+        gbc.fill = GridBagConstraints.BOTH;      // Fill cells
+        gbc.weightx = 0.5;                       // Equal width columns
+
+        // --- ROW 0: Date (Left) | Problem (Right) ---
+        gbc.gridy = 0;
+
+        // Left: Date
+        gbc.gridx = 0;
+        JPanel dateGroup = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
+        dateGroup.setBackground(Theme.WHITE);
+        dateGroup.add(dateChooser);
+        dateGroup.add(atLabel);
+        dateGroup.add(timeSpinner);
+
+        JPanel dateWrapper = new JPanel(new BorderLayout(0, 5));
+        dateWrapper.setBackground(Theme.WHITE);
+        dateLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        dateWrapper.add(dateLabel, BorderLayout.NORTH);
+        dateWrapper.add(dateGroup, BorderLayout.CENTER);
+        panel.add(dateWrapper, gbc);
+
+        // Right: Problem
+        gbc.gridx = 1;
+        panel.add(createFieldGroup(problemLabel, problemDescriptionField), gbc);
+
+        // --- ROW 1: Repairs (Left) | Parts Used (Right) ---
+        gbc.gridy = 1;
+        gbc.weighty = 1.0; // Allow text areas to grow vertically
+
+        gbc.gridx = 0;
+        panel.add(createFieldGroup(repairsLabel, repairsField), gbc);
+
+        gbc.gridx = 1;
+        panel.add(createFieldGroup(partsUsedLabel, partsUsedField), gbc);
+
+        // --- ROW 2: Observations (Left) | Buttons (Right) ---
+        gbc.gridy = 2;
+
+        gbc.gridx = 0;
+        panel.add(createFieldGroup(observationsLabel, observationsField), gbc);
+
+        // Right: Buttons (2x2 Grid)
+        gbc.gridx = 1;
+
+        JPanel buttonGrid = new JPanel(new GridLayout(2, 2, 10, 10)); // 2x2 Grid
+        buttonGrid.setBackground(Theme.WHITE);
+        buttonGrid.add(addButton);
+        buttonGrid.add(clearButton);
+        buttonGrid.add(updateButton);
+        buttonGrid.add(deleteButton);
+
+        // Align button grid to bottom of cell
+        JPanel btnWrapper = new JPanel(new BorderLayout());
+        btnWrapper.setBackground(Theme.WHITE);
+        btnWrapper.add(buttonGrid, BorderLayout.SOUTH);
+
+        panel.add(btnWrapper, gbc);
+
+        return panel;
+    }
+
+    // Helper to stack Label on top of Component
+    private JPanel createFieldGroup(JComponent label, JComponent field) {
+        JPanel p = new JPanel(new BorderLayout(0, 5));
+        p.setBackground(Theme.WHITE);
+        if (label instanceof JLabel) {
+            ((JLabel)label).setHorizontalAlignment(SwingConstants.CENTER);
+        }
+        p.add(label, BorderLayout.NORTH);
+        p.add(field, BorderLayout.CENTER);
+        return p;
     }
 
     private JScrollPane createTablePanel() {
         JScrollPane scroll = new JScrollPane(table);
-        scroll.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createEmptyBorder(10, 15, 10, 15),
-                BorderFactory.createLineBorder(Color.LIGHT_GRAY)
-        ));
+        // Clean border for the table
+        scroll.setBorder(BorderFactory.createMatteBorder(1, 0, 0, 0, Color.LIGHT_GRAY));
+        scroll.setMinimumSize(new Dimension(150, 150));
         return scroll;
     }
 
-    private JPanel createBottomPanel() {
-        JPanel panel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
-        panel.setBorder(BorderFactory.createEmptyBorder(10, 15, 15, 15));
-        panel.add(updateButton);
-        panel.add(Box.createVerticalStrut(15));
-        panel.add(deleteButton);
-        panel.add(Box.createHorizontalStrut(15));
-        return panel;
-    }
-
-    private JPanel setupCardPanel() {
-        JPanel panel = new JPanel();
-        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
-        panel.setBackground(Theme.WHITE);
-        panel.setOpaque(true);
-        panel.add(Box.createVerticalStrut(15));
-        return panel;
-    }
-
-    // --- ACTIONS (ADD, UPDATE, DELETE, CLEAR) ---
+    // --- ACTIONS (Unchanged) ---
 
     private void addAppointment() {
         if (validateAndFormatInput()) return;
 
-        String name = nameField.getText();
-        String phone = phoneField.getText();
-        String plate = carLicensePlateField.getText();
+        String name = (String) nameField.getEditor().getItem();
+        String phone = (String) phoneField.getEditor().getItem();
+        String plate = (String) carLicensePlateField.getEditor().getItem();
         String brand = (String) carBrandBox.getSelectedItem();
-        String model = carModelField.getText().replace(";", ",");
+        String model = carModelField.getEditor().getItem().toString().replace(";", ",");
         String desc = problemDescriptionField.getText().replace(";", ",");
+        String repairs = repairsField.getText().replace(";", ",");
+        String partsUsed = partsUsedField.getText().replace(";", ",");
+        String observations = observationsField.getText().replace(";", ",");
         Date finalDate = Utils.combineDateAndTime(dateChooser.getDate(), (Date) timeSpinner.getValue());
 
-        int year = 0;
-        try { year = Integer.parseInt(carYearField.getText().trim()); } catch (NumberFormatException ignored) {}
+        int year = (Integer) carYearField.getValue();
 
         if (finalDate.before(new Date())) {
             showError("msg.err.past");
@@ -276,7 +454,7 @@ public class AppointmentView extends JPanel {
             return;
         }
 
-        Appointment newAppt = new Appointment(name, phone, plate, brand, model, year, currentPhotoPath, finalDate, desc);
+        Appointment newAppt = new Appointment(name, phone, plate, brand, model, year, currentPhotoPath, finalDate, desc, repairs, partsUsed, observations);
 
         try {
             DatabaseHelper.addAppointmentTransaction(newAppt);
@@ -302,16 +480,18 @@ public class AppointmentView extends JPanel {
         if (validateAndFormatInput()) return;
 
         Appointment appt = appointmentList.get(selectedRow);
-        appt.setClientName(nameField.getText());
-        appt.setClientPhone(phoneField.getText());
-        appt.setCarLicensePlate(carLicensePlateField.getText());
+        appt.setClientName(nameField.getEditor().getItem().toString());
+        appt.setClientPhone(phoneField.getEditor().getItem().toString());
+        appt.setCarLicensePlate(carLicensePlateField.getEditor().getItem().toString());
         appt.setCarBrand((String) carBrandBox.getSelectedItem());
-        appt.setCarModel(carModelField.getText());
+        appt.setCarModel(carModelField.getEditor().getItem().toString());
         appt.setDate(Utils.combineDateAndTime(dateChooser.getDate(), (Date) timeSpinner.getValue()));
         appt.setProblemDescription(problemDescriptionField.getText());
+        appt.setRepairs(repairsField.getText());
+        appt.setPartsUsed(partsUsedField.getText());
+        appt.setObservations(observationsField.getText());
         appt.setCarPhotoPath(currentPhotoPath);
-
-        try { appt.setCarYear(Integer.parseInt(carYearField.getText().trim())); } catch(Exception ignored) {}
+        appt.setCarYear((Integer) carYearField.getValue());
 
         try {
             DatabaseHelper.updateAppointmentTransaction(appt);
@@ -330,7 +510,6 @@ public class AppointmentView extends JPanel {
             return;
         }
 
-        // REPLACED: Confirm Dialog
         boolean confirmed = ThemedDialog.showConfirm(this,
                 LanguageHelper.getString("title.confirm"),
                 LanguageHelper.getString("msg.confirm.delete"));
@@ -349,15 +528,18 @@ public class AppointmentView extends JPanel {
     private void clearInputs() {
         table.clearSelection();
         updateButton.setEnabled(false);
-        nameField.setText("");
-        phoneField.setText("");
-        carLicensePlateField.setText("");
+        nameField.setSelectedItem("");
+        phoneField.setSelectedItem("");
+        carLicensePlateField.setSelectedItem("");
         carBrandBox.setSelectedIndex(-1);
-        carModelField.setText("");
-        carYearField.setText("");
+        carModelField.setSelectedItem("");
+        carYearField.setValue(2000);
         currentPhotoPath = "";
         photoLabel.setText(LanguageHelper.getString("msg.no_photo"));
         problemDescriptionField.setText("");
+        partsUsedField.setText("");
+        observationsField.setText("");
+        repairsField.setText("");
         dateChooser.setDate(new Date());
         timeSpinner.setValue(new Date());
         nameField.requestFocus();
@@ -384,30 +566,31 @@ public class AppointmentView extends JPanel {
             tableModel.addRow(new Object[]{
                     a.getClientName(), a.getClientPhone(), a.getCarLicensePlate(),
                     a.getCarBrand(), a.getCarModel(), a.getCarYear(),
-                    dateFormat.format(a.getDate()), a.getProblemDescription(), a.getStatus()
+                    dateFormat.format(a.getDate()), a.getProblemDescription(), a.getRepairs(),
+                    a.getPartsUsed(), a.getObservations(), a.getStatus()
             });
         }
     }
 
     private boolean validateAndFormatInput() {
-        nameField.setText(Utils.toTitleCase(nameField.getText().trim()));
-        carLicensePlateField.setText(Utils.formatPlate(carLicensePlateField.getText()));
-        carModelField.setText(Utils.toTitleCase(carModelField.getText().trim()));
+        nameField.setSelectedItem(Utils.toTitleCase(nameField.getEditor().getItem().toString().trim()));
+        carLicensePlateField.setSelectedItem(Utils.formatPlate(carLicensePlateField.getEditor().getItem().toString()));
+        carModelField.setSelectedItem(Utils.toTitleCase(carModelField.getEditor().getItem().toString().trim()));
 
         String rawBrand = (String) carBrandBox.getSelectedItem();
         if (rawBrand != null && !rawBrand.isEmpty()) {
             carBrandBox.getEditor().setItem(Utils.toTitleCase(rawBrand));
         }
 
-        if (nameField.getText().isEmpty() || dateChooser.getDate() == null) {
+        if (nameField.getEditor().getItem().toString().isEmpty() || dateChooser.getDate() == null) {
             showError("msg.req.name_date");
             return true;
         }
-        if (!Utils.isValidPhone(phoneField.getText())) {
+        if (!Utils.isValidPhone(phoneField.getEditor().getItem().toString())) {
             showError("msg.err.phone");
             return true;
         }
-        if (!carLicensePlateField.getText().matches("^[A-Z]{1,2}-[0-9]{2,3}-[A-Z]{3}$")) {
+        if (!carLicensePlateField.getEditor().getItem().toString().matches("^[A-Z]{1,2}-[0-9]{2,3}-[A-Z]{3}$")) {
             showError("msg.err.plate");
             return true;
         }
@@ -424,6 +607,79 @@ public class AppointmentView extends JPanel {
 
         StatusMenuHelper.attach(table, appointmentList, this::loadDataFromDB, this);
 
+        // 1. Phone Selected -> Fill Name
+        phoneField.addActionListener(e -> {
+            // Only trigger if the popup is not visible (selection made) or Enter pressed
+            if (!phoneField.isPopupVisible()) {
+                String selectedPhone = (String) phoneField.getEditor().getItem();
+                if (selectedPhone != null && !selectedPhone.isEmpty()) {
+                    try {
+                        List<Client> clients = DatabaseHelper.getClientsByPhone(selectedPhone);
+                        if (!clients.isEmpty()) {
+                            nameField.setSelectedItem(clients.get(0).getClientName());
+                        }
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        // 2. Name Selected -> Fill Phone (Only if phone is empty, to avoid overwriting)
+        nameField.addActionListener(e -> {
+            if (!nameField.isPopupVisible()) {
+                String selectedName = (String) nameField.getEditor().getItem();
+                String currentPhone = (String) phoneField.getEditor().getItem();
+
+                if (selectedName != null && !selectedName.isEmpty() && (currentPhone == null || currentPhone.isEmpty())) {
+                    try {
+                        List<Client> clients = DatabaseHelper.getClientsByName(selectedName);
+                        if (!clients.isEmpty()) {
+                            phoneField.setSelectedItem(clients.get(0).getClientPhone());
+                        }
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
+
+        // 3. License Plate Selected -> Fill Car Details (Brand, Model, Year)
+        carLicensePlateField.addActionListener(e -> {
+            if (!carLicensePlateField.isPopupVisible()) {
+                String selectedPlate = (String) carLicensePlateField.getEditor().getItem();
+                if (selectedPlate != null && !selectedPlate.isEmpty()) {
+                    try {
+                        List<Car> cars = DatabaseHelper.getCarDetailsByPlate(selectedPlate);
+                        if (!cars.isEmpty()) {
+                            Car car = cars.get(0);
+                            carBrandBox.setSelectedItem(car.getCarBrand());
+                            carModelField.setSelectedItem(car.getCarModel());
+                            carYearField.setValue(car.getYear());
+                            String path = car.getPhotoPath();
+
+                            if (path != null && !path.isEmpty()) {
+                                currentPhotoPath = path;
+                                photoLabel.setText(new File(path).getName());
+                                photoLabel.setForeground(new Color(46, 204, 113));
+                                viewPhotoButton.setEnabled(true);
+                            } else {
+                                currentPhotoPath = "";
+                                photoLabel.setText(LanguageHelper.getString("msg.no_photo"));
+                                photoLabel.setForeground(Color.BLACK);
+                                viewPhotoButton.setEnabled(false);
+                            }
+
+                            // Optional: If we found the car, we likely know the client too
+                            // Could add logic here to reverse-lookup the client ID if needed.
+                        }
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+            }
+        });
+
         selectPhotoButton.addActionListener(_ -> {
             JFileChooser chooser = new JFileChooser();
             chooser.setFileFilter(new FileNameExtensionFilter("Images", "jpg", "png", "jpeg"));
@@ -432,7 +688,47 @@ public class AppointmentView extends JPanel {
                 currentPhotoPath = file.getAbsolutePath();
                 photoLabel.setText(file.getName());
                 photoLabel.setForeground(new Color(46, 204, 113));
+                viewPhotoButton.setEnabled(true);
             }
+        });
+
+        viewPhotoButton.addActionListener(_ -> {
+            if(currentPhotoPath == null || currentPhotoPath.isEmpty()) return;
+
+            File file = new  File(currentPhotoPath);
+            if(!file.exists()){
+                ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("msg.err.no_file"));
+                return;
+            }
+
+            ImageIcon originalIcon = new ImageIcon(file.getAbsolutePath());
+
+            int maxWidth = 800;
+            int maxHeight = 600;
+            int imgWidth = originalIcon.getIconWidth();
+            int imgHeight = originalIcon.getIconHeight();
+
+            if(imgWidth > maxWidth || imgHeight > maxHeight) {
+                double widthRatio = (double) imgWidth / maxWidth;
+                double heightRatio = (double) imgHeight / maxHeight;
+                double scale = Math.min(widthRatio, heightRatio);
+                imgWidth = (int) (imgWidth * scale);
+                imgHeight = (int) (imgHeight * scale);
+            }
+
+            Image scaledImage = originalIcon.getImage().getScaledInstance(imgWidth, imgHeight, Image.SCALE_SMOOTH);
+
+            JDialog photoDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), LanguageHelper.getString("title.photo_viewer"), true);
+            photoDialog.setLayout(new BorderLayout());
+
+            JLabel imageLabel = new JLabel(new ImageIcon(scaledImage));
+            imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
+
+            photoDialog.add(new JScrollPane(imageLabel), BorderLayout.CENTER);
+
+            photoDialog.setSize(imgWidth + 50, imgHeight + 80);
+            photoDialog.setLocationRelativeTo(this);
+            photoDialog.setVisible(true);
         });
 
         table.getSelectionModel().addListSelectionListener(e -> {
@@ -451,12 +747,14 @@ public class AppointmentView extends JPanel {
             public void changedUpdate(DocumentEvent e) { enableUpdate.run(); }
         };
 
-        nameField.getDocument().addDocumentListener(docListener);
-        phoneField.getDocument().addDocumentListener(docListener);
-        carLicensePlateField.getDocument().addDocumentListener(docListener);
-        carModelField.getDocument().addDocumentListener(docListener);
-        carYearField.getDocument().addDocumentListener(docListener);
+        ((JTextField) nameField.getEditor().getEditorComponent()).getDocument().addDocumentListener(docListener);
+        ((JTextField) phoneField.getEditor().getEditorComponent()).getDocument().addDocumentListener(docListener);
+        ((JTextField) carLicensePlateField.getEditor().getEditorComponent()).getDocument().addDocumentListener(docListener);
+        ((JTextField) carModelField.getEditor().getEditorComponent()).getDocument().addDocumentListener(docListener);
         problemDescriptionField.getDocument().addDocumentListener(docListener);
+        repairsField.getDocument().addDocumentListener(docListener);
+        partsUsedField.getDocument().addDocumentListener(docListener);
+        observationsField.getDocument().addDocumentListener(docListener);
         ((JTextField) carBrandBox.getEditor().getEditorComponent()).getDocument().addDocumentListener(docListener);
         carBrandBox.addActionListener(_ -> enableUpdate.run());
         dateChooser.addPropertyChangeListener("date", _ -> enableUpdate.run());
@@ -492,18 +790,22 @@ public class AppointmentView extends JPanel {
         Appointment appt = appointmentList.get(rowIndex);
         updateButton.setEnabled(false);
 
-        nameField.setText(appt.getClientName());
-        phoneField.setText(appt.getClientPhone());
-        carLicensePlateField.setText(appt.getCarLicensePlate());
+        nameField.setSelectedItem(appt.getClientName());
+        phoneField.setSelectedItem(appt.getClientPhone());
+        carLicensePlateField.setSelectedItem(appt.getCarLicensePlate());
         carBrandBox.setSelectedItem(appt.getCarBrand());
-        carModelField.setText(appt.getCarModel());
-        carYearField.setText(String.valueOf(appt.getCarYear()));
+        carModelField.setSelectedItem(appt.getCarModel());
+        carYearField.setValue(appt.getCarYear());
         currentPhotoPath = appt.getCarPhotoPath();
 
         photoLabel.setText((currentPhotoPath != null && !currentPhotoPath.isEmpty())
                 ? new File(currentPhotoPath).getName() : LanguageHelper.getString("msg.no_photo"));
+        viewPhotoButton.setEnabled((currentPhotoPath != null && !currentPhotoPath.isEmpty()));
 
         problemDescriptionField.setText(appt.getProblemDescription());
+        repairsField.setText(appt.getRepairs());
+        partsUsedField.setText(appt.getPartsUsed());
+        observationsField.setText(appt.getObservations());
         dateChooser.setDate(appt.getDate());
         timeSpinner.setValue(appt.getDate());
     }
@@ -554,6 +856,7 @@ public class AppointmentView extends JPanel {
         deleteButton.setText(LanguageHelper.getString("btn.delete"));
         clearButton.setText(LanguageHelper.getString("btn.clear"));
         selectPhotoButton.setText(LanguageHelper.getString("btn.select_photo"));
+        viewPhotoButton.setText(LanguageHelper.getString("btn.view_photo"));
 
         nameLabel.setText(LanguageHelper.getString("lbl.name"));
         phoneLabel.setText(LanguageHelper.getString("lbl.phone"));
@@ -564,6 +867,9 @@ public class AppointmentView extends JPanel {
         photoTitleLabel.setText(LanguageHelper.getString("lbl.photo"));
         dateLabel.setText(LanguageHelper.getString("lbl.date"));
         problemLabel.setText(LanguageHelper.getString("lbl.problem"));
+        repairsLabel.setText(LanguageHelper.getString("lbl.repairs"));
+        partsUsedLabel.setText(LanguageHelper.getString("lbl.parts_used"));
+        observationsLabel.setText(LanguageHelper.getString("lbl.observations"));
         atLabel.setText(LanguageHelper.getString("lbl.at"));
 
         if(currentPhotoPath.isEmpty()) photoLabel.setText(LanguageHelper.getString("msg.no_photo"));
@@ -574,10 +880,12 @@ public class AppointmentView extends JPanel {
                     LanguageHelper.getString("col.plate"), LanguageHelper.getString("col.brand"),
                     LanguageHelper.getString("col.model"), LanguageHelper.getString("col.year"),
                     LanguageHelper.getString("col.date"), LanguageHelper.getString("col.problem"),
-                    LanguageHelper.getString("col.status")
+                    LanguageHelper.getString("col.repairs"), LanguageHelper.getString("col.parts_used"),
+                    LanguageHelper.getString("col.observations"), LanguageHelper.getString("col.status")
             };
             tableModel.setColumnIdentifiers(cols);
-            table.getColumnModel().getColumn(8).setCellRenderer(new StatusCellRenderer());
+            table.getColumnModel().getColumn(11).setCellRenderer(new StatusCellRenderer());
+            StatusMenuHelper.attach(table, appointmentList, this::loadDataFromDB, this);
         }
 
         clientPanel.setBorder(createStyledBorder("sect.client"));
@@ -620,5 +928,75 @@ public class AppointmentView extends JPanel {
         JTextField tf = new JTextField(12);
         tf.setFont(INPUT_FONT);
         return tf;
+    }
+
+    private JTextArea createTextArea() {
+        JTextArea ta = new JTextArea(2, 1);
+        ta.setFont(INPUT_FONT);
+        ta.setLineWrap(true);
+        ta.setWrapStyleWord(true);
+        ta.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.LIGHT_GRAY),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+        return ta;
+    }
+
+    private void styleComboBox(JComboBox<String> box) {
+        // 1. Apply the Custom UI
+        box.setUI(new ModernComboBoxUI());
+
+        // 2. Basic Setup
+        box.setEditable(true);
+        box.setFont(INPUT_FONT);
+
+        // 3. Style the internal text field
+        // Note: setting the UI re-creates the editor, so we fetch it again here
+        JTextField editor = (JTextField) box.getEditor().getEditorComponent();
+        editor.setFont(INPUT_FONT);
+
+        // 4. Apply the Border
+        // This puts the gray border around the *text* part.
+        // The arrow button sits inside the ComboBox but outside this editor border in BasicUI layout.
+        editor.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.LIGHT_GRAY),
+                BorderFactory.createEmptyBorder(5, 5, 5, 5)
+        ));
+
+        // 5. Backgrounds
+        box.setBackground(Color.WHITE);
+        editor.setBackground(Color.WHITE);
+    }
+
+    private void styleSpinner(JSpinner spinner) {
+        // 1. Apply Red Buttons UI
+        spinner.setUI(new ModernSpinnerUI());
+
+        spinner.setFont(INPUT_FONT);
+
+        // 2. Fix the Comma (1,999 -> 1999) ONLY if it is a Number Model
+        if (spinner.getModel() instanceof SpinnerNumberModel) {
+            JSpinner.NumberEditor editor = new JSpinner.NumberEditor(spinner, "#");
+            spinner.setEditor(editor);
+        }
+
+        // 3. Style the internal text field
+        // We get the editor's text field regardless of whether it's Date or Number
+        JComponent editor = spinner.getEditor();
+        if (editor instanceof JSpinner.DefaultEditor) {
+            JFormattedTextField textField = ((JSpinner.DefaultEditor) editor).getTextField();
+            textField.setFont(INPUT_FONT);
+            textField.setHorizontalAlignment(SwingConstants.CENTER);
+            textField.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
+        }
+
+        // 4. Apply the external border
+        spinner.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(Color.LIGHT_GRAY),
+                BorderFactory.createEmptyBorder(0, 0, 0, 0)
+        ));
+
+        // 5. Mouse Scroll
+        Utils.addMouseScrollToSpinner(spinner);
     }
 }

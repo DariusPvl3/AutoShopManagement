@@ -53,8 +53,29 @@ public class MainFrame extends JFrame {
 
     private void initFrame() {
         setUndecorated(true);
-        setTitle("AutoShop Scheduler V1.3.3");
-        setSize(1200, 800);
+        setTitle("AutoShop Scheduler V1.4.0");
+
+        // 1. Get the default toolkit
+        Toolkit toolkit = Toolkit.getDefaultToolkit();
+
+        // 2. Get full screen size
+        Dimension screenSize = toolkit.getScreenSize();
+
+        // 3. Get the "Insets" (the size of the taskbar on all sides)
+        Insets scnMax = toolkit.getScreenInsets(getGraphicsConfiguration());
+
+        // 4. Calculate the actual available width and height
+        int taskBarTop = scnMax.top;
+        int taskBarBottom = scnMax.bottom;
+        int taskBarLeft = scnMax.left;
+        int taskBarRight = scnMax.right;
+
+        int width = screenSize.width - taskBarLeft - taskBarRight;
+        int height = screenSize.height - taskBarTop - taskBarBottom;
+
+        // 5. Apply the bounds manually
+        setBounds(taskBarLeft, taskBarTop, width, height);
+
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setAppIcon();
@@ -73,7 +94,7 @@ public class MainFrame extends JFrame {
         JPanel topSection = new JPanel(new BorderLayout());
 
         // A. Title Bar
-        topSection.add(new CustomTitleBar(this, "AutoShop Scheduler V1.3.4"), BorderLayout.NORTH);
+        topSection.add(new CustomTitleBar(this, "AutoShop Scheduler V1.4.0"), BorderLayout.NORTH);
 
         // B. Menu
         JPanel menuPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 10));

@@ -299,6 +299,7 @@ public class DashboardView extends JPanel {
 
             calendar.setLocale(LanguageHelper.getCurrentLocale());
             SwingUtilities.invokeLater(() -> CalendarCustomizer.styleCalendar(calendar));
+            StatusMenuHelper.attach(agendaTable, appointmentList, this::loadDataFromDB, this);
         }
     }
 

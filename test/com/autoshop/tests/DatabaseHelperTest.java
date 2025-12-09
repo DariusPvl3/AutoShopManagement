@@ -28,7 +28,7 @@ public class DatabaseHelperTest {
     @Test
     public void testInsertAppointment() throws SQLException {
         Date testDate = new Date();
-        Appointment test = new Appointment("Test", "0777777777", "TM01TST", "TestCar", "TestModel", 2000, "testPath", testDate, "Test Problem Description");
+        Appointment test = new Appointment("Test", "0777777777", "TM01TST", "TestCar", "TestModel", 2000, "testPath", testDate, "Test Problem Description", "Test Repairs");
         DatabaseHelper.addAppointmentTransaction(test);
         List<Appointment> testList = DatabaseHelper.getAllAppointments();
 
@@ -42,7 +42,7 @@ public class DatabaseHelperTest {
     @Test
     public void testDeleteAppointment() throws SQLException {
         Date testDate = new Date();
-        Appointment test2 = new Appointment("Test2", "0712 345 678", "BZ02TST", "TestCar", "TestModel", 2000, "testPath2", testDate, "Test Description");
+        Appointment test2 = new Appointment("Test2", "0712 345 678", "BZ02TST", "TestCar", "TestModel", 2000, "testPath2", testDate, "Test Description", "Test Repairs");
         DatabaseHelper.addAppointmentTransaction(test2);
         List<Appointment> all =  DatabaseHelper.getAllAppointments();
         Appointment savedAppointment = all.getFirst();
@@ -56,7 +56,7 @@ public class DatabaseHelperTest {
     public void testUpdateAppointment() throws SQLException {
         // 1. Create original
         Date date = new Date();
-        Appointment original = new Appointment("John Doe", "0711111111", "TM11TEST", "Audi", "A4", 2010, "", date, "Oil Change");
+        Appointment original = new Appointment("John Doe", "0711111111", "TM11TEST", "Audi", "A4", 2010, "", date, "Oil Change", "Reparation");
         DatabaseHelper.addAppointmentTransaction(original);
 
         // 2. Fetch it to get the ID
@@ -82,8 +82,8 @@ public class DatabaseHelperTest {
     public void testSearchFunction() throws SQLException {
         Date now = new Date();
         // Add two different cars
-        DatabaseHelper.addAppointmentTransaction(new Appointment("Client A", "0711111111", "TM01A", "Audi", "A4", 2010, "", now, "Fix"));
-        DatabaseHelper.addAppointmentTransaction(new Appointment("Client B", "0722222222", "TM02B", "BMW", "X5", 2015, "", now, "Fix"));
+        DatabaseHelper.addAppointmentTransaction(new Appointment("Client A", "0711111111", "TM01A", "Audi", "A4", 2010, "", now, "Fix", "Fixed"));
+        DatabaseHelper.addAppointmentTransaction(new Appointment("Client B", "0722222222", "TM02B", "BMW", "X5", 2015, "", now, "Fix", "Fixed"));
 
         // 1. Search by Brand "Audi"
         List<Appointment> results = DatabaseHelper.searchAppointments("Audi", null, null, null);
@@ -108,7 +108,7 @@ public class DatabaseHelperTest {
         Date yesterday = cal.getTime();
 
         // 2. Add an appointment with SCHEDULED status
-        Appointment pastAppointment = new Appointment("Lazy Client", "0700000000", "TM00OLD", "Ford", "Focus", 2005, "", yesterday, "Late");
+        Appointment pastAppointment = new Appointment("Lazy Client", "0700000000", "TM00OLD", "Ford", "Focus", 2005, "", yesterday, "Late", "No repair");
         // (Default constructor sets status to SCHEDULED)
         DatabaseHelper.addAppointmentTransaction(pastAppointment);
 

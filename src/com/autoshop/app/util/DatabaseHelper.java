@@ -2,6 +2,8 @@ package com.autoshop.app.util;
 
 import com.autoshop.app.model.Appointment;
 import com.autoshop.app.model.AppointmentStatus;
+import com.autoshop.app.model.Car;
+import com.autoshop.app.model.Client;
 
 import java.sql.*;
 import java.util.ArrayList;
@@ -35,14 +37,14 @@ public class DatabaseHelper {
                 + "model TEXT, " + "year INTEGER, " + "photo_path TEXT, " + "FOREIGN KEY(client_id) REFERENCES Clients(client_id));";
 
         String appointmentsQuery = "CREATE TABLE IF NOT EXISTS Appointments (" + "appointment_id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                + "car_id INTEGER NOT NULL, " + "date INTEGER, " + "problem TEXT, " + "status TEXT, "
+                + "car_id INTEGER NOT NULL, " + "date INTEGER, " + "problem TEXT, " + "repairs TEXT," + "parts_used TEXT, "
+                + "observations TEXT, " + "status TEXT, "
                 + "FOREIGN KEY(car_id) REFERENCES Cars(car_id));";
 
         try (Connection conn = connect(); Statement stmt = conn.createStatement()) {
             stmt.execute(clientQuery);
             stmt.execute(carsQuery);
             stmt.execute(appointmentsQuery);
-            System.out.println("Database tables checked/created.");
         }
     }
 
@@ -56,12 +58,15 @@ public class DatabaseHelper {
 
                 int carId = getOrCreateCar(conn, clientId, appointment.getCarLicensePlate(), appointment.getCarBrand(), appointment.getCarModel(), appointment.getCarYear(), appointment.getCarPhotoPath());
 
-                String sql = "INSERT INTO Appointments(car_id, date, problem, status) VALUES(?, ?, ?, ?)";
+                String sql = "INSERT INTO Appointments(car_id, date, problem, repairs, parts_used, observations, status) VALUES(?, ?, ?, ?, ?, ?, ?)";
                 try (PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
                     preparedStatement.setInt(1, carId);
                     preparedStatement.setLong(2, appointment.getDate().getTime());
                     preparedStatement.setString(3, appointment.getProblemDescription());
-                    preparedStatement.setString(4, AppointmentStatus.SCHEDULED.name());
+                    preparedStatement.setString(4, appointment.getRepairs());
+                    preparedStatement.setString(5, appointment.getPartsUsed());
+                    preparedStatement.setString(6, appointment.getObservations());
+                    preparedStatement.setString(7, AppointmentStatus.SCHEDULED.name());
                     preparedStatement.executeUpdate();
                 }
                 conn.commit();
@@ -119,7 +124,7 @@ public class DatabaseHelper {
         long end = cal.getTimeInMillis();
 
         // The Hybrid SQL
-        return "SELECT app.appointment_id, app.date, app.problem, app.status, " +
+        return "SELECT app.appointment_id, app.date, app.problem, app.repairs, app.parts_used, app.observations, app.status, " +
                 "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
                 "client.name, client.phone " +
                 "FROM Appointments app " +
@@ -155,7 +160,7 @@ public class DatabaseHelper {
     // 3. GET ALL
     public static List<Appointment> getAllAppointments() throws SQLException {
         List<Appointment> list = new ArrayList<>();
-        String sql = "SELECT app.appointment_id, app.date, app.problem, app.status, " +
+        String sql = "SELECT app.appointment_id, app.date, app.problem, app.repairs, app.parts_used, app.observations, app.status, " +
                 "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
                 "client.name, client.phone " +
                 "FROM Appointments app " +
@@ -179,12 +184,15 @@ public class DatabaseHelper {
             conn.setAutoCommit(false);
             try {
                 // 1. Appointment
-                String sqlAppointment = "UPDATE Appointments SET date=?, problem=?, status=? WHERE appointment_id=?";
+                String sqlAppointment = "UPDATE Appointments SET date=?, problem=?, repairs=?, parts_used=?, observations=?, status=? WHERE appointment_id=?";
                 try (PreparedStatement preparedStatement = conn.prepareStatement(sqlAppointment)) {
                     preparedStatement.setLong(1, appointment.getDate().getTime());
                     preparedStatement.setString(2, appointment.getProblemDescription());
-                    preparedStatement.setString(3, appointment.getStatus().name());
-                    preparedStatement.setInt(4, appointment.getAppointmentID());
+                    preparedStatement.setString(3, appointment.getRepairs());
+                    preparedStatement.setString(4, appointment.getPartsUsed());
+                    preparedStatement.setString(5, appointment.getObservations());
+                    preparedStatement.setString(6, appointment.getStatus().name());
+                    preparedStatement.setInt(7, appointment.getAppointmentID());
                     preparedStatement.executeUpdate();
                 }
 
@@ -235,7 +243,7 @@ public class DatabaseHelper {
         cal.set(Calendar.MILLISECOND, 999);
         long end = cal.getTimeInMillis();
 
-        String sql = "SELECT app.appointment_id, app.date, app.problem, app.status, " +
+        String sql = "SELECT app.appointment_id, app.date, app.problem, app.repairs, app.parts_used, app.observations, app.status, " +
                 "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
                 "client.name, client.phone " +
                 "FROM Appointments app " +
@@ -248,7 +256,7 @@ public class DatabaseHelper {
 
     public static List<Appointment> getActiveAppointments() throws SQLException {
         List<Appointment> list = new ArrayList<>();
-        String sql = "SELECT app.appointment_id, app.date, app.problem, app.status, " +
+        String sql = "SELECT app.appointment_id, app.date, app.problem, app.repairs, app.parts_used, app.observations, app.status, " +
                 "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
                 "client.name, client.phone " +
                 "FROM Appointments app " +
@@ -270,6 +278,9 @@ public class DatabaseHelper {
                         rs.getInt("car_id"),
                         new Date(rs.getLong("date")),
                         rs.getString("problem"),
+                        rs.getString("repairs"),
+                        rs.getString("parts_used"),
+                        rs.getString("observations"),
                         AppointmentStatus.valueOf(rs.getString("status")),
                         rs.getString("name"),
                         rs.getString("phone"),
@@ -307,7 +318,7 @@ public class DatabaseHelper {
 
         // Base Query
         StringBuilder sql = new StringBuilder(
-                "SELECT app.appointment_id, app.date, app.problem, app.status, " +
+                "SELECT app.appointment_id, app.date, app.problem, app.repairs, app.parts_used, app.observations, app.status, " +
                         "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
                         "client.name, client.phone " +
                         "FROM Appointments app " +
@@ -338,6 +349,9 @@ public class DatabaseHelper {
                         .append("car.model LIKE ? OR ")
                         .append("car.year LIKE ? OR ")
                         .append("app.problem LIKE ? OR ")
+                        .append("app.repairs LIKE ? OR ")
+                        .append("app.parts_used LIKE ? OR ")
+                        .append("app.observations LIKE ? OR ")
                         // Check raw input against plate
                         .append("car.license_plate LIKE ? OR ")
                         // Check formatted input against plate (TM12ABC -> matches TM-12-ABC)
@@ -385,6 +399,12 @@ public class DatabaseHelper {
                     preparedStatement.setString(index++, pattern);
                     // Problem
                     preparedStatement.setString(index++, pattern);
+                    // Repairs
+                    preparedStatement.setString(index++, pattern);
+                    // Parts used
+                    preparedStatement.setString(index++, pattern);
+                    // Observations
+                    preparedStatement.setString(index++, pattern);
                     // Plate (Raw)
                     preparedStatement.setString(index++, pattern);
                     // Plate (Formatted)
@@ -403,6 +423,9 @@ public class DatabaseHelper {
                             rs.getInt("car_id"),
                             new Date(rs.getLong("date")),
                             rs.getString("problem"),
+                            rs.getString("repairs"),
+                            rs.getString("parts_used"),
+                            rs.getString("observations"),
                             AppointmentStatus.valueOf(rs.getString("status").toUpperCase()),
                             rs.getString("name"),
                             rs.getString("phone"),
@@ -417,5 +440,93 @@ public class DatabaseHelper {
             }
         }
         return list;
+    }
+
+    // PARTIAL SEARCHES
+    public static List<Client> getClientsByName(String partialName) throws SQLException {
+        List<Client> clientList = new ArrayList<>();
+        String sql = "SELECT * FROM Clients WHERE name LIKE ?";
+
+        try (Connection conn = connect();
+             PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
+
+            preparedStatement.setString(1, partialName + "%");
+            ResultSet rs = preparedStatement.executeQuery();
+
+            while (rs.next()) {
+                Client client = new Client(
+                        rs.getInt("client_id"),
+                        rs.getString("name"),
+                        rs.getString("phone"));
+                clientList.add(client);
+            }
+        }
+        return clientList;
+    }
+
+    public static List<Client> getClientsByPhone(String partialPhone) throws SQLException {
+        List<Client> clientList = new ArrayList<>();
+        String sql = "SELECT * FROM Clients WHERE phone LIKE ?";
+        try (Connection conn = connect();
+        PreparedStatement preparedStatement = conn.prepareStatement(sql);) {
+            preparedStatement.setString(1, partialPhone + "%");
+            ResultSet rs = preparedStatement.executeQuery();
+            while (rs.next()) {
+                Client client = new Client(
+                        rs.getInt("client_id"),
+                        rs.getString("name"),
+                        rs.getString("phone")
+                );
+                clientList.add(client);
+            }
+        };
+        return clientList;
+    }
+
+    public static List<Car> getCarModelsByBrand(String brand, String partialModel) throws SQLException {
+        List<Car> carList = new ArrayList<>();
+        String sql = "SELECT * FROM Cars WHERE brand_name = ? AND model LIKE ?";
+        try (Connection conn = connect();
+        PreparedStatement preparedStatement = conn.prepareStatement(sql);) {
+            preparedStatement.setString(1, brand);
+            preparedStatement.setString(2, partialModel + "%");
+            ResultSet rs = preparedStatement.executeQuery();
+            while (rs.next()) {
+                Car car = new Car(
+                        rs.getInt("car_id"),
+                        rs.getInt("client_id"),
+                        rs.getString("license_plate"),
+                        rs.getString("brand_name"),
+                        rs.getString("model"),
+                        rs.getInt("year"),
+                        rs.getString("photo_path")
+                );
+                carList.add(car);
+            }
+        }
+        return carList;
+    }
+
+    public static List<Car> getCarDetailsByPlate(String plate) throws SQLException {
+        List<Car> carList = new ArrayList<>();
+        String sql = "SELECT * FROM Cars WHERE license_plate LIKE ?";
+        try (Connection conn = connect();
+             PreparedStatement preparedStatement = conn.prepareStatement(sql);) {
+            preparedStatement.setString(1, plate + "%");
+            ResultSet rs = preparedStatement.executeQuery();
+            while (rs.next()) {
+                Car car = new Car(
+                        rs.getInt("car_id"),
+                        rs.getInt("client_id"),
+                        rs.getString("license_plate"),
+                        rs.getString("brand_name"),
+                        rs.getString("model"),
+                        rs.getInt("year"),
+                        rs.getString("photo_path")
+                );
+                carList.add(car);
+            }
+        }
+        return carList;
     }
 }

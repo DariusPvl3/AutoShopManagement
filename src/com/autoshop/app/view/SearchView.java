@@ -99,13 +99,13 @@ public class SearchView extends JPanel {
     }
 
     private JScrollPane createTablePanel() {
-        String[] columns = {"Client", "Phone", "Plate", "Brand", "Model", "Year", "Date", "Problem", "Status"};
+        String[] columns = {"Client", "Phone", "Plate", "Brand", "Model", "Year", "Date", "Problem", "Repairs", "Parts", "Observations", "Status"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override public boolean isCellEditable(int row, int col) { return false; }
         };
 
-        resultsTable = SwingTableStyler.create(tableModel, 8);
-        resultsTable.getColumnModel().getColumn(8).setCellRenderer(new StatusCellRenderer());
+        resultsTable = SwingTableStyler.create(tableModel, 11);
+        resultsTable.getColumnModel().getColumn(11).setCellRenderer(new StatusCellRenderer());
 
         return new JScrollPane(resultsTable);
     }
@@ -156,7 +156,8 @@ public class SearchView extends JPanel {
             tableModel.addRow(new Object[]{
                     a.getClientName(), a.getClientPhone(), a.getCarLicensePlate(),
                     a.getCarBrand(), a.getCarModel(), a.getCarYear(),
-                    dateFormat.format(a.getDate()), a.getProblemDescription(), a.getStatus()
+                    dateFormat.format(a.getDate()), a.getProblemDescription(), a.getRepairs(),
+                    a.getPartsUsed(), a.getObservations(), a.getStatus()
             });
         }
     }
@@ -218,11 +219,13 @@ public class SearchView extends JPanel {
                     LanguageHelper.getString("col.plate"), LanguageHelper.getString("col.brand"),
                     LanguageHelper.getString("col.model"), LanguageHelper.getString("col.year"),
                     LanguageHelper.getString("col.date"), LanguageHelper.getString("col.problem"),
-                    LanguageHelper.getString("col.status")
+                    LanguageHelper.getString("col.repairs"), LanguageHelper.getString("col.parts_used"),
+                    LanguageHelper.getString("col.observations"), LanguageHelper.getString("col.status")
             };
             tableModel.setColumnIdentifiers(cols);
-            resultsTable.getColumnModel().getColumn(8).setCellRenderer(new StatusCellRenderer());
+            resultsTable.getColumnModel().getColumn(11).setCellRenderer(new StatusCellRenderer());
             resultsTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 16));
+            StatusMenuHelper.attach(resultsTable, resultsList, this::performSearch, this);
         }
     }
 
