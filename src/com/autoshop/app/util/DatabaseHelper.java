@@ -37,9 +37,12 @@ public class DatabaseHelper {
                 + "model TEXT, " + "year INTEGER, " + "photo_path TEXT, " + "FOREIGN KEY(client_id) REFERENCES Clients(client_id));";
 
         String appointmentsQuery = "CREATE TABLE IF NOT EXISTS Appointments (" + "appointment_id INTEGER PRIMARY KEY AUTOINCREMENT, "
-                + "car_id INTEGER NOT NULL, " + "date INTEGER, " + "problem TEXT, " + "repairs TEXT," + "parts_used TEXT, "
+                + "car_id INTEGER NOT NULL, "
+                + "client_id INTEGER NOT NULL, "
+                + "date INTEGER, " + "problem TEXT, " + "repairs TEXT," + "parts_used TEXT, "
                 + "observations TEXT, " + "status TEXT, "
-                + "FOREIGN KEY(car_id) REFERENCES Cars(car_id));";
+                + "FOREIGN KEY(car_id) REFERENCES Cars(car_id), "
+                + "FOREIGN KEY(client_id) REFERENCES Clients(client_id));";
 
         try (Connection conn = connect(); Statement stmt = conn.createStatement()) {
             stmt.execute(clientQuery);
@@ -54,19 +57,23 @@ public class DatabaseHelper {
         try (Connection conn = connect()) {
             conn.setAutoCommit(false);
             try {
+                // 1. Get/Create the Client
                 int clientId = getOrCreateClient(conn, appointment.getClientName(), appointment.getClientPhone());
 
+                // 2. Get/Create the Car
                 int carId = getOrCreateCar(conn, clientId, appointment.getCarLicensePlate(), appointment.getCarBrand(), appointment.getCarModel(), appointment.getCarYear(), appointment.getCarPhotoPath());
 
-                String sql = "INSERT INTO Appointments(car_id, date, problem, repairs, parts_used, observations, status) VALUES(?, ?, ?, ?, ?, ?, ?)";
+                // 3. Create Appointment linking THIS Client and THAT Car
+                String sql = "INSERT INTO Appointments(car_id, client_id, date, problem, repairs, parts_used, observations, status) VALUES(?, ?, ?, ?, ?, ?, ?, ?)";
                 try (PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
                     preparedStatement.setInt(1, carId);
-                    preparedStatement.setLong(2, appointment.getDate().getTime());
-                    preparedStatement.setString(3, appointment.getProblemDescription());
-                    preparedStatement.setString(4, appointment.getRepairs());
-                    preparedStatement.setString(5, appointment.getPartsUsed());
-                    preparedStatement.setString(6, appointment.getObservations());
-                    preparedStatement.setString(7, AppointmentStatus.SCHEDULED.name());
+                    preparedStatement.setInt(2, clientId);
+                    preparedStatement.setLong(3, appointment.getDate().getTime());
+                    preparedStatement.setString(4, appointment.getProblemDescription());
+                    preparedStatement.setString(5, appointment.getRepairs());
+                    preparedStatement.setString(6, appointment.getPartsUsed());
+                    preparedStatement.setString(7, appointment.getObservations());
+                    preparedStatement.setString(8, AppointmentStatus.SCHEDULED.name());
                     preparedStatement.executeUpdate();
                 }
                 conn.commit();
@@ -78,23 +85,29 @@ public class DatabaseHelper {
     }
 
     // Helper: Find client by phone. If not found, create new.
-    private static int getOrCreateClient(Connection conn, String name, String phone) throws SQLException {
-        // 1. Check existence
-        String checkSql = "SELECT client_id FROM Clients WHERE phone = ?";
-        try (PreparedStatement preparedStatement = conn.prepareStatement(checkSql)) {
-            preparedStatement.setString(1, phone);
-            ResultSet rs = preparedStatement.executeQuery();
-            if (rs.next())
-                return rs.getInt("client_id"); // Client exists!
+    private static int getOrCreateClient(Connection conn, String name, String rawPhone) throws SQLException {
+        // 1. Normalize the phone (clean spaces/dashes)
+        String phone = com.autoshop.app.util.Utils.normalizePhone(rawPhone);
+
+        // 2. Check existence BY PHONE (Unique Identifier)
+        String checkSql = "SELECT client_id, name FROM Clients WHERE phone = ?";
+        try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+            ps.setString(1, phone);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) {
+                // Found a client with this phone.
+                // Optional: You could update their name here if it changed.
+                return rs.getInt("client_id");
+            }
         }
 
-        // 2. Create new
+        // 3. If phone not found, Create New Client (even if name matches someone else)
         String insertSql = "INSERT INTO Clients(name, phone) VALUES(?, ?)";
-        try (PreparedStatement preparedStatement = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
-            preparedStatement.setString(1, name);
-            preparedStatement.setString(2, phone);
-            preparedStatement.executeUpdate();
-            return preparedStatement.getGeneratedKeys().getInt(1);
+        try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, name);
+            ps.setString(2, phone);
+            ps.executeUpdate();
+            return ps.getGeneratedKeys().getInt(1);
         }
     }
 
@@ -165,7 +178,7 @@ public class DatabaseHelper {
                 "client.name, client.phone " +
                 "FROM Appointments app " +
                 "JOIN Cars car ON app.car_id = car.car_id " +
-                "JOIN Clients client ON car.client_id = client.client_id";
+                "JOIN Clients client ON app.client_id = client.client_id";
 
         return getAppointments(list, sql);
     }
@@ -181,45 +194,51 @@ public class DatabaseHelper {
 
     public static void updateAppointmentTransaction(Appointment appointment) throws SQLException {
         try (Connection conn = connect()) {
-            conn.setAutoCommit(false);
+            conn.setAutoCommit(false); // Start Transaction
             try {
-                // 1. Appointment
-                String sqlAppointment = "UPDATE Appointments SET date=?, problem=?, repairs=?, parts_used=?, observations=?, status=? WHERE appointment_id=?";
-                try (PreparedStatement preparedStatement = conn.prepareStatement(sqlAppointment)) {
-                    preparedStatement.setLong(1, appointment.getDate().getTime());
-                    preparedStatement.setString(2, appointment.getProblemDescription());
-                    preparedStatement.setString(3, appointment.getRepairs());
-                    preparedStatement.setString(4, appointment.getPartsUsed());
-                    preparedStatement.setString(5, appointment.getObservations());
-                    preparedStatement.setString(6, appointment.getStatus().name());
-                    preparedStatement.setInt(7, appointment.getAppointmentID());
-                    preparedStatement.executeUpdate();
+                // 1. Resolve the Client ID
+                // Instead of overwriting the old client's data, we find/create the correct client
+                // for the currently entered Name/Phone.
+                int clientId = getOrCreateClient(conn, appointment.getClientName(), appointment.getClientPhone());
+
+                // 2. Update Appointment (Now including the link to the correct Client)
+                // Note: We added client_id to the SET list
+                String sqlAppointment = "UPDATE Appointments SET client_id=?, date=?, problem=?, repairs=?, parts_used=?, observations=?, status=? WHERE appointment_id=?";
+                try (PreparedStatement ps = conn.prepareStatement(sqlAppointment)) {
+                    ps.setInt(1, clientId);
+                    ps.setLong(2, appointment.getDate().getTime());
+                    ps.setString(3, appointment.getProblemDescription());
+                    ps.setString(4, appointment.getRepairs());
+                    ps.setString(5, appointment.getPartsUsed());
+                    ps.setString(6, appointment.getObservations());
+                    ps.setString(7, appointment.getStatus().name());
+                    ps.setInt(8, appointment.getAppointmentID());
+                    ps.executeUpdate();
                 }
 
-                // 2. Car
+                // 3. Update Car Details
                 String sqlCar = "UPDATE Cars SET license_plate=?, brand_name=?, model=?, year=?, photo_path=? WHERE car_id=?";
-                try (PreparedStatement preparedStatement = conn.prepareStatement(sqlCar)) {
-                    preparedStatement.setString(1, appointment.getCarLicensePlate());
-                    preparedStatement.setString(2, appointment.getCarBrand());
-                    preparedStatement.setString(3, appointment.getCarModel());
-                    preparedStatement.setInt(4, appointment.getCarYear());
-                    preparedStatement.setString(5, appointment.getCarPhotoPath());
-                    preparedStatement.setInt(6, appointment.getCarID());
-                    preparedStatement.executeUpdate();
+                try (PreparedStatement ps = conn.prepareStatement(sqlCar)) {
+                    ps.setString(1, appointment.getCarLicensePlate());
+                    ps.setString(2, appointment.getCarBrand());
+                    ps.setString(3, appointment.getCarModel());
+                    ps.setInt(4, appointment.getCarYear());
+                    ps.setString(5, appointment.getCarPhotoPath());
+                    ps.setInt(6, appointment.getCarID());
+
+                    int rows = ps.executeUpdate();
+                    if (rows == 0) {
+                        // This helps us catch if the ID was wrong
+                        System.err.println("CRITICAL ERROR: No car found with ID " + appointment.getCarID());
+                        throw new SQLException("Car record missing! ID: " + appointment.getCarID());
+                    }
                 }
 
-                // 3. Client
-                String sqlClient = "UPDATE Clients SET name=?, phone=? WHERE client_id = (SELECT client_id FROM Cars WHERE car_id=?)";
-                try (PreparedStatement preparedStatement = conn.prepareStatement(sqlClient)) {
-                    preparedStatement.setString(1, appointment.getClientName());
-                    preparedStatement.setString(2, appointment.getClientPhone());
-                    preparedStatement.setInt(3, appointment.getCarID());
-                    preparedStatement.executeUpdate();
-                }
-                conn.commit();
+                conn.commit(); // Apply changes
             } catch (SQLException e) {
-                conn.rollback();
-                throw e;
+                conn.rollback(); // Undo everything if ANY step failed
+                e.printStackTrace();
+                throw e; // Re-throw so the UI shows the error dialog
             }
         }
     }
@@ -450,7 +469,7 @@ public class DatabaseHelper {
         try (Connection conn = connect();
              PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
 
-            preparedStatement.setString(1, partialName + "%");
+            preparedStatement.setString(1, "%" + partialName + "%");
             ResultSet rs = preparedStatement.executeQuery();
 
             while (rs.next()) {

@@ -34,6 +34,7 @@ public class DashboardView extends JPanel {
     private JTable agendaTable;
     private JCalendar calendar;
     private JLabel tableHeader, todayLabel, activeLabel;
+    private Timer refreshTimer;
 
     // Callbacks
     private Consumer<Integer> onJumpRequest;
@@ -60,6 +61,31 @@ public class DashboardView extends JPanel {
         LanguageHelper.addListener(this::updateText);
         updateText();
         loadDataFromDB();
+
+        // --- AUTO-REFRESH LOGIC ---
+        // Refreshes every 30 seconds to update statuses visually
+        refreshTimer = new Timer(30000, e -> {
+            // For safety, the table will not refresh if the user is currently editing
+            if (agendaTable != null && !agendaTable.isEditing()) {
+                // We keep the current selection so the list doesn't jump
+                int selectedRow = agendaTable.getSelectedRow();
+                int selectedId = -1;
+                if (selectedRow != -1 && selectedRow < appointmentList.size()) {
+                    selectedId = appointmentList.get(selectedRow).getAppointmentID();
+                }
+                loadDataFromDB();
+                // Restore selection
+                if (selectedId != -1) {
+                    for (int i = 0; i < appointmentList.size(); i++) {
+                        if (appointmentList.get(i).getAppointmentID() == selectedId) {
+                            agendaTable.setRowSelectionInterval(i, i);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+        refreshTimer.start();
     }
 
     // --- UI CONSTRUCTION ---

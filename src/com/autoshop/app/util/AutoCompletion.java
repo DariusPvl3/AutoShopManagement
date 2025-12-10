@@ -74,10 +74,14 @@ public class AutoCompletion {
                 if (e.getKeyCode() == KeyEvent.VK_ENTER) {
                     // If the list is filtered and has items, pick the first one
                     if (comboBox.getItemCount() > 0) {
-                        Object topItem = comboBox.getItemAt(0);
-                        textEditor.setText(topItem.toString());
-                        comboBox.setSelectedItem(topItem);
-                        comboBox.hidePopup();
+                        int selectionIndex =  comboBox.getSelectedIndex();
+                        int targetIndex = (selectionIndex == -1) ? 0 :  selectionIndex;
+                        Object selectedItem = comboBox.getItemAt(targetIndex);
+                        if(selectedItem != null){
+                            textEditor.setText(selectedItem.toString());
+                            comboBox.setSelectedItem(selectedItem);
+                            comboBox.hidePopup();
+                        }
                     }
                 }
             }

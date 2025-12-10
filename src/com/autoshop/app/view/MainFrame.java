@@ -1,9 +1,6 @@
 package com.autoshop.app.view;
 
-import com.autoshop.app.component.ButtonStyler;
-import com.autoshop.app.component.CustomTitleBar;
-import com.autoshop.app.component.NotificationService;
-import com.autoshop.app.component.RoundedButton;
+import com.autoshop.app.component.*;
 import com.autoshop.app.util.DatabaseHelper;
 import com.autoshop.app.util.LanguageHelper;
 import com.autoshop.app.util.PreferencesHelper;
@@ -53,6 +50,7 @@ public class MainFrame extends JFrame {
 
     private void initFrame() {
         setUndecorated(true);
+        WindowResizeHelper.install(this);
         setTitle("AutoShop Scheduler V1.4.0");
 
         // 1. Get the default toolkit

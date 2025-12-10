@@ -8,12 +8,14 @@ import com.autoshop.app.util.*;
 import com.toedter.calendar.JDateChooser;
 
 import javax.swing.*;
+import javax.swing.Timer;
 import javax.swing.border.Border;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.filechooser.FileNameExtensionFilter;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
+import java.awt.image.BufferedImage;
 import java.io.File;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
@@ -40,6 +42,7 @@ public class AppointmentView extends JPanel {
     private JDateChooser dateChooser;
     private JSpinner timeSpinner, carYearField;
     private JTextArea repairsField, partsUsedField, observationsField;
+    private Timer refreshTimer;
 
     private JLabel nameLabel, phoneLabel, plateLabel, brandLabel, modelLabel, yearLabel, photoTitleLabel, dateLabel, problemLabel, repairsLabel, partsUsedLabel, observationsLabel, atLabel;
 
@@ -103,6 +106,31 @@ public class AppointmentView extends JPanel {
         LanguageHelper.addListener(this::updateText);
         updateText();
         clearInputs();
+
+        // --- AUTO-REFRESH LOGIC ---
+        // Refreshes every 30 seconds to update statuses visually
+        refreshTimer = new Timer(30000, e -> {
+           // For safety, the table will not refresh if the user is currently editing
+            if (table != null && !table.isEditing()) {
+                // We keep the current selection so the list doesn't jump
+                int selectedRow = table.getSelectedRow();
+                int selectedId = -1;
+                if (selectedRow != -1 && selectedRow < appointmentList.size()) {
+                    selectedId = appointmentList.get(selectedRow).getAppointmentID();
+                }
+                loadDataFromDB();
+                // Restore selection
+                if (selectedId != -1) {
+                    for (int i = 0; i < appointmentList.size(); i++) {
+                        if (appointmentList.get(i).getAppointmentID() == selectedId) {
+                            table.setRowSelectionInterval(i, i);
+                            break;
+                        }
+                    }
+                }
+            }
+        });
+        refreshTimer.start();
     }
 
     // --- INITIALIZATION ---
@@ -145,11 +173,12 @@ public class AppointmentView extends JPanel {
         JSpinner.NumberEditor editor = new JSpinner.NumberEditor(carYearField, "#");
         carYearField.setEditor(editor);
         styleSpinner(carYearField);
+        Utils.addMouseScrollToSpinner(carYearField, null);
 
-        styleComboBox(nameField);
-        styleComboBox(phoneField);
-        styleComboBox(carLicensePlateField);
-        styleComboBox(carModelField);
+        styleComboBox(nameField, false);
+        styleComboBox(phoneField, false);
+        styleComboBox(carLicensePlateField, false);
+        styleComboBox(carModelField,  false);
 
         AutoCompletion.enable(nameField, text -> {
             try {
@@ -167,7 +196,8 @@ public class AppointmentView extends JPanel {
         nameField.setEditable(true);
         AutoCompletion.enable(phoneField, text -> {
             try {
-                List<Client> clients = DatabaseHelper.getClientsByPhone(text);
+                String cleanPhone = Utils.normalizePhone(text);
+                List<Client> clients = DatabaseHelper.getClientsByPhone(cleanPhone);
                 List<String> phones = new ArrayList<>();
                 for (Client client : clients) {
                     phones.add(client.getClientPhone());
@@ -223,7 +253,7 @@ public class AppointmentView extends JPanel {
                 "Tesla", "Toyota", "Volkswagen", "Volvo"};
         carBrandBox = new JComboBox<>(carBrands);
         carBrandBox.setEditable(true);
-        styleComboBox(carBrandBox);
+        styleComboBox(carBrandBox, true);
         AutoCompletion.enable(carBrandBox);
 
         selectPhotoButton = new RoundedButton("Select Photo");
@@ -250,7 +280,82 @@ public class AppointmentView extends JPanel {
         JSpinner.DateEditor timeEditor = new JSpinner.DateEditor(timeSpinner, "HH:mm");
         timeSpinner.setEditor(timeEditor);
         timeSpinner.setPreferredSize(new Dimension(80, 25));
+
+        // 1. Apply Visual Style
         styleSpinner(timeSpinner);
+
+        // 2. DATE ROLLOVER LOGIC
+        // We track the time to detect the 23 <-> 00 jump
+        final Date[] trackingDate = { (Date) timeSpinner.getValue() };
+
+        timeSpinner.addChangeListener(e -> {
+            Date newTime = (Date) timeSpinner.getValue();
+            Date currentSelectedDate = dateChooser.getDate();
+
+            if (currentSelectedDate != null) {
+                Calendar oldCal = Calendar.getInstance(); oldCal.setTime(trackingDate[0]);
+                Calendar newCal = Calendar.getInstance(); newCal.setTime(newTime);
+
+                int oldH = oldCal.get(Calendar.HOUR_OF_DAY);
+                int newH = newCal.get(Calendar.HOUR_OF_DAY);
+
+                // Forward: 23 -> 00
+                if (oldH == 23 && newH == 0) {
+                    Calendar dateCal = Calendar.getInstance(); dateCal.setTime(currentSelectedDate);
+                    dateCal.add(Calendar.DAY_OF_MONTH, 1);
+                    dateChooser.setDate(dateCal.getTime());
+                }
+                // Backward: 00 -> 23
+                else if (oldH == 0 && newH == 23) {
+                    Calendar dateCal = Calendar.getInstance(); dateCal.setTime(currentSelectedDate);
+                    dateCal.add(Calendar.DAY_OF_MONTH, -1);
+                    dateChooser.setDate(dateCal.getTime());
+                }
+            }
+            trackingDate[0] = newTime; // Update tracker
+        });
+
+        // 3. MOUSE SCROLL SUPPORT
+        // We pass 'null' for the callback because the ChangeListener above now handles the logic!
+        Utils.addMouseScrollToSpinner(timeSpinner, null);
+
+        // 4. AUTO-COLON TYPING (Time: "1230" -> "12:30")
+        JFormattedTextField timeField = ((JSpinner.DefaultEditor) timeSpinner.getEditor()).getTextField();
+        timeField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyTyped(java.awt.event.KeyEvent e) {
+                char c = e.getKeyChar();
+                if (!Character.isDigit(c)) return;
+                String text = timeField.getText();
+                if (timeField.getSelectedText() != null) return;
+
+                if (text.length() == 2 && !text.contains(":")) {
+                    e.consume();
+                    timeField.setText(text + ":" + c);
+                }
+            }
+        });
+
+        // 5. AUTO-SLASH TYPING (Date: "0101" -> "01/01")
+        // Access the internal text field of the JDateChooser
+        JTextField dateField = (JTextField) dateChooser.getDateEditor().getUiComponent();
+        dateField.addKeyListener(new java.awt.event.KeyAdapter() {
+            @Override
+            public void keyTyped(java.awt.event.KeyEvent e) {
+                char c = e.getKeyChar();
+                if (!Character.isDigit(c)) return;
+
+                String text = dateField.getText();
+                // Prevent typing if text is selected (overwrite logic is complex, skipping for safety)
+                if (dateField.getSelectedText() != null) return;
+
+                // Insert slash after Day (2 chars) and Month (5 chars: 01/01)
+                if ((text.length() == 2 || text.length() == 5) && !text.endsWith("/")) {
+                    e.consume();
+                    dateField.setText(text + "/" + c);
+                }
+            }
+        });
     }
 
     private void initButtons() {
@@ -700,35 +805,43 @@ public class AppointmentView extends JPanel {
                 ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("msg.err.no_file"));
                 return;
             }
+            try {
+                // 1. Read into Buffer
+                BufferedImage rawImage = javax.imageio.ImageIO.read(file);
 
-            ImageIcon originalIcon = new ImageIcon(file.getAbsolutePath());
+                if (rawImage == null) {
+                    ThemedDialog.showMessage(this, "Error", "Cannot load image format.");
+                    return;
+                }
 
-            int maxWidth = 800;
-            int maxHeight = 600;
-            int imgWidth = originalIcon.getIconWidth();
-            int imgHeight = originalIcon.getIconHeight();
+                // 2. Calculate Scale (Keep Aspect Ratio)
+                int maxWidth = 800;
+                int maxHeight = 600;
+                int imgW = rawImage.getWidth();
+                int imgH = rawImage.getHeight();
 
-            if(imgWidth > maxWidth || imgHeight > maxHeight) {
-                double widthRatio = (double) imgWidth / maxWidth;
-                double heightRatio = (double) imgHeight / maxHeight;
-                double scale = Math.min(widthRatio, heightRatio);
-                imgWidth = (int) (imgWidth * scale);
-                imgHeight = (int) (imgHeight * scale);
+                if (imgW > maxWidth || imgH > maxHeight) {
+                    double widthRatio = (double) maxWidth / imgW;
+                    double heightRatio = (double) maxHeight / imgH;
+                    double scale = Math.min(widthRatio, heightRatio);
+                    imgW = (int) (imgW * scale);
+                    imgH = (int) (imgH * scale);
+                }
+
+                // 3. Create Scaled Instance
+                Image scaledImage = rawImage.getScaledInstance(imgW, imgH, Image.SCALE_SMOOTH);
+
+                // 4. Show Dialog
+                JDialog photoDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), "Photo Viewer", true);
+                photoDialog.setLayout(new BorderLayout());
+                photoDialog.add(new JScrollPane(new JLabel(new ImageIcon(scaledImage))), BorderLayout.CENTER);
+                photoDialog.setSize(imgW + 50, imgH + 80);
+                photoDialog.setLocationRelativeTo(this);
+                photoDialog.setVisible(true);
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                ThemedDialog.showMessage(this, "Error", "Failed to load image: " + ex.getMessage());
             }
-
-            Image scaledImage = originalIcon.getImage().getScaledInstance(imgWidth, imgHeight, Image.SCALE_SMOOTH);
-
-            JDialog photoDialog = new JDialog((Frame) SwingUtilities.getWindowAncestor(this), LanguageHelper.getString("title.photo_viewer"), true);
-            photoDialog.setLayout(new BorderLayout());
-
-            JLabel imageLabel = new JLabel(new ImageIcon(scaledImage));
-            imageLabel.setHorizontalAlignment(SwingConstants.CENTER);
-
-            photoDialog.add(new JScrollPane(imageLabel), BorderLayout.CENTER);
-
-            photoDialog.setSize(imgWidth + 50, imgHeight + 80);
-            photoDialog.setLocationRelativeTo(this);
-            photoDialog.setVisible(true);
         });
 
         table.getSelectionModel().addListSelectionListener(e -> {
@@ -942,22 +1055,36 @@ public class AppointmentView extends JPanel {
         return ta;
     }
 
-    private void styleComboBox(JComboBox<String> box) {
-        // 1. Apply the Custom UI
-        box.setUI(new ModernComboBoxUI());
+    // Updated signature: accepts 'boolean showArrow'
+    private void styleComboBox(JComboBox<String> box, boolean showArrow) {
+
+        // 1. Logic to Hide/Show Arrow
+        if (showArrow) {
+            // Standard UI (Red Arrow)
+            box.setUI(new ModernComboBoxUI());
+        } else {
+            // Invisible Arrow UI
+            // We override the creation method to return a "Ghost" button
+            box.setUI(new ModernComboBoxUI() {
+                @Override
+                protected JButton createArrowButton() {
+                    JButton btn = new JButton();
+                    btn.setPreferredSize(new Dimension(0, 0)); // Zero size
+                    btn.setVisible(false); // Invisible
+                    return btn;
+                }
+            });
+        }
 
         // 2. Basic Setup
         box.setEditable(true);
         box.setFont(INPUT_FONT);
 
         // 3. Style the internal text field
-        // Note: setting the UI re-creates the editor, so we fetch it again here
         JTextField editor = (JTextField) box.getEditor().getEditorComponent();
         editor.setFont(INPUT_FONT);
 
         // 4. Apply the Border
-        // This puts the gray border around the *text* part.
-        // The arrow button sits inside the ComboBox but outside this editor border in BasicUI layout.
         editor.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.LIGHT_GRAY),
                 BorderFactory.createEmptyBorder(5, 5, 5, 5)
@@ -969,19 +1096,17 @@ public class AppointmentView extends JPanel {
     }
 
     private void styleSpinner(JSpinner spinner) {
-        // 1. Apply Red Buttons UI
+        // 1. UI & Font
         spinner.setUI(new ModernSpinnerUI());
-
         spinner.setFont(INPUT_FONT);
 
-        // 2. Fix the Comma (1,999 -> 1999) ONLY if it is a Number Model
+        // 2. Number Format (Year)
         if (spinner.getModel() instanceof SpinnerNumberModel) {
             JSpinner.NumberEditor editor = new JSpinner.NumberEditor(spinner, "#");
             spinner.setEditor(editor);
         }
 
-        // 3. Style the internal text field
-        // We get the editor's text field regardless of whether it's Date or Number
+        // 3. Editor Styling
         JComponent editor = spinner.getEditor();
         if (editor instanceof JSpinner.DefaultEditor) {
             JFormattedTextField textField = ((JSpinner.DefaultEditor) editor).getTextField();
@@ -990,13 +1115,10 @@ public class AppointmentView extends JPanel {
             textField.setBorder(BorderFactory.createEmptyBorder(2, 5, 2, 5));
         }
 
-        // 4. Apply the external border
+        // 4. Border
         spinner.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.LIGHT_GRAY),
                 BorderFactory.createEmptyBorder(0, 0, 0, 0)
         ));
-
-        // 5. Mouse Scroll
-        Utils.addMouseScrollToSpinner(spinner);
     }
 }
