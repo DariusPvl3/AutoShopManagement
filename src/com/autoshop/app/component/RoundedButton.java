@@ -5,7 +5,7 @@ import java.awt.*;
 
 public class RoundedButton extends JButton {
 
-    private int radius;
+    private final int radius;
 
     public RoundedButton(String text) {
         super(text);

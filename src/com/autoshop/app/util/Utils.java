@@ -9,7 +9,6 @@ import java.util.Date;
 
 public class Utils {
 
-    // ... (Keep toTitleCase, combineDateAndTime, phone methods, isValidPlate, formatPlate as they are) ...
     public static String toTitleCase(String input) {
         if (input == null || input.isEmpty()) return "";
         String[] words = input.trim().split("\\s+");
@@ -37,17 +36,25 @@ public class Utils {
 
     public static boolean isValidPhone(String phone) {
         if (phone == null || phone.isEmpty()) return false;
-        String cleanPhone = phone.replaceAll("[\\s\\-\\.\\(\\)]", "");
+        String cleanPhone = phone.replaceAll("[\\s\\-.()]", "");
         return cleanPhone.matches("^(\\+40|0)[0-9]{9}$");
+    }
+
+    public static boolean isValidPlate(String plate) {
+        if (plate == null || plate.isEmpty()) return false;
+
+        // Regex Logic:
+        // ^[A-Z]{1,2}   -> 1 or 2 letters for County (e.g., B, TM, CJ)
+        // -             -> Dash separator
+        // [0-9]{2,3}    -> 2 or 3 digits (e.g., 05, 100)
+        // -             -> Dash separator
+        // [A-Z]{3}$     -> Exactly 3 letters at the end (e.g., AAA)
+        return plate.matches("^[A-Z]{1,2}-[0-9]{2,3}-[A-Z]{3}$");
     }
 
     public static String normalizePhone(String phone) {
         if (phone == null) return "";
         return phone.replaceAll("[^0-9]", "");
-    }
-
-    public static boolean isValidPlate(String plate) {
-        return plate.matches("^[A-Z]{1,2}-[0-9]{2,3}-[A-Z]{3}$");
     }
 
     public static String formatPlate(String rawPlate) {
@@ -61,7 +68,7 @@ public class Utils {
     // --- SCROLL LOGIC UPDATES ---
 
     // 1. OLD METHOD (Kept for compatibility)
-    // Calls the new method with 'null' so you don't have to change your carYearField code
+    // Calls the new method with 'null' so to keep the code for carYearField
     public static void addMouseScrollToSpinner(JSpinner spinner) {
         addMouseScrollToSpinner(spinner, null);
     }
@@ -96,10 +103,9 @@ public class Utils {
                     int step = stepSize.intValue();
                     int next = (rotation < 0) ? current + step : current - step;
 
-                    if (spinner.getModel() instanceof SpinnerNumberModel) {
-                        SpinnerNumberModel model = (SpinnerNumberModel) spinner.getModel();
-                        Comparable max = model.getMaximum();
-                        Comparable min = model.getMinimum();
+                    if (spinner.getModel() instanceof SpinnerNumberModel model) {
+                        Comparable<?> max = model.getMaximum();
+                        Comparable<?> min = model.getMinimum();
                         if (max != null && next > (Integer) max) next = (Integer) max;
                         if (min != null && next < (Integer) min) next = (Integer) min;
                     }
@@ -114,7 +120,6 @@ public class Utils {
         });
     }
 
-    // ... (Keep isToday, copyFile, getCurrentTimeStamp, loadIcon) ...
     public static boolean isToday(java.util.Date date) {
         java.util.Calendar t = java.util.Calendar.getInstance();
         java.util.Calendar d = java.util.Calendar.getInstance();

@@ -30,7 +30,7 @@ public class ModernSpinnerUI extends BasicSpinnerUI {
     // --- NEW HELPER METHOD FOR AUTO-REPEAT ---
     private void installButtonLogic(JButton btn, boolean isNext) {
         // 1. Create a Timer that fires every 60ms (fast speed)
-        Timer timer = new Timer(60, e -> {
+        Timer timer = new Timer(60, _ -> {
             if (spinner != null && spinner.isEnabled()) {
                 Object newValue = isNext ? spinner.getNextValue() : spinner.getPreviousValue();
                 if (newValue != null) {

@@ -16,11 +16,6 @@ public class RedCheckBox extends JCheckBox {
         init();
     }
 
-    public RedCheckBox(String text, boolean selected) {
-        super(text, selected);
-        init();
-    }
-
     private void init() {
         setFocusPainted(false);
         setBackground(Theme.OFF_WHITE);

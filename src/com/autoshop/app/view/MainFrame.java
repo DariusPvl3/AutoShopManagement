@@ -1,21 +1,18 @@
 package com.autoshop.app.view;
 
 import com.autoshop.app.component.*;
-import com.autoshop.app.util.DatabaseHelper;
 import com.autoshop.app.util.LanguageHelper;
-import com.autoshop.app.util.PreferencesHelper;
 import com.autoshop.app.util.Theme;
 
 import javax.swing.*;
 import java.awt.*;
-import java.util.Locale;
 
 public class MainFrame extends JFrame {
     private final CardLayout cardLayout = new CardLayout();
     private final JPanel mainPanel = new JPanel(cardLayout);
 
     // Buttons
-    private JButton homeButton, appointmentButton, searchButton, settingsButton;
+    private JButton homeButton, appointmentButton, searchButton, settingsButton, helpButton;
 
     // Views
     private DashboardView dashboardView;
@@ -51,29 +48,17 @@ public class MainFrame extends JFrame {
     private void initFrame() {
         setUndecorated(true);
         WindowResizeHelper.install(this);
-        setTitle("AutoShop Scheduler V1.4.0");
+        setTitle("AutoShop Scheduler V1.4.2"); // Updated Version
 
-        // 1. Get the default toolkit
+        // Calculate Screen Bounds (Respecting Taskbar)
         Toolkit toolkit = Toolkit.getDefaultToolkit();
-
-        // 2. Get full screen size
         Dimension screenSize = toolkit.getScreenSize();
-
-        // 3. Get the "Insets" (the size of the taskbar on all sides)
         Insets scnMax = toolkit.getScreenInsets(getGraphicsConfiguration());
 
-        // 4. Calculate the actual available width and height
-        int taskBarTop = scnMax.top;
-        int taskBarBottom = scnMax.bottom;
-        int taskBarLeft = scnMax.left;
-        int taskBarRight = scnMax.right;
+        int width = screenSize.width - scnMax.left - scnMax.right;
+        int height = screenSize.height - scnMax.top - scnMax.bottom;
 
-        int width = screenSize.width - taskBarLeft - taskBarRight;
-        int height = screenSize.height - taskBarTop - taskBarBottom;
-
-        // 5. Apply the bounds manually
-        setBounds(taskBarLeft, taskBarTop, width, height);
-
+        setBounds(scnMax.left, scnMax.top, width, height);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
         setAppIcon();
@@ -92,7 +77,7 @@ public class MainFrame extends JFrame {
         JPanel topSection = new JPanel(new BorderLayout());
 
         // A. Title Bar
-        topSection.add(new CustomTitleBar(this, "AutoShop Scheduler V1.4.0"), BorderLayout.NORTH);
+        topSection.add(new CustomTitleBar(this, "AutoShop Scheduler V1.4.2"), BorderLayout.NORTH);
 
         // B. Menu
         JPanel menuPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 10));
@@ -103,10 +88,17 @@ public class MainFrame extends JFrame {
         searchButton = createMenuButton("Search");
         settingsButton = createMenuButton("Settings");
 
+        helpButton = new RoundedButton("?");
+        ButtonStyler.apply(helpButton, Theme.GRAY);
+        helpButton.setMargin(new Insets(8, 15, 8, 15)); // Smaller padding
+        helpButton.setToolTipText("Shortcuts & Help");
+
         menuPanel.add(homeButton);
         menuPanel.add(appointmentButton);
         menuPanel.add(searchButton);
         menuPanel.add(settingsButton);
+        menuPanel.add(Box.createHorizontalStrut(50));
+        menuPanel.add(helpButton);
 
         topSection.add(menuPanel, BorderLayout.CENTER);
         return topSection;
@@ -134,6 +126,8 @@ public class MainFrame extends JFrame {
         appointmentButton.addActionListener(_ -> cardLayout.show(mainPanel, "APPOINTMENTS"));
         searchButton.addActionListener(_ -> cardLayout.show(mainPanel, "SEARCH"));
         settingsButton.addActionListener(_ -> cardLayout.show(mainPanel, "SETTINGS"));
+
+        helpButton.addActionListener(_ -> showHelpDialog());
 
         // Default View
         cardLayout.show(mainPanel, "HOME");
@@ -179,27 +173,74 @@ public class MainFrame extends JFrame {
         if (iconURL != null) {
             setIconImage(new ImageIcon(iconURL).getImage());
         } else {
-            System.err.println("Logo not found! Check path or Rebuild Project.");
+            System.err.println("Warning: Logo not found at /resources/logo.png");
         }
     }
 
-    // --- MAIN ENTRY POINT ---
+    // --- HELP DIALOG LOGIC ---
+    private void showHelpDialog() {
+        // 1. Build Localized HTML Content
+        String title = LanguageHelper.getString("help.title");
+        String shortcutsTitle = LanguageHelper.getString("help.shortcuts");
+        String tipsTitle = LanguageHelper.getString("help.tips");
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
-            try {
-                UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-                DatabaseHelper.createNewTable();
-                DatabaseHelper.autoUpdateStatuses();
+        String sb = "<html><body style='width: 350px; font-family: SansSerif; font-size: 14px;'>" + // width controls wrapping
 
-                NotificationService.start();
+                // Shortcuts Section
+                "<h3 style='color: #E74C3C;'>" + shortcutsTitle + "</h3>" +
+                "<table border='0' cellpadding='3'>" +
+                row("Ctrl + S", "help.add") +
+                row("Ctrl + E", "help.update") +
+                row("Ctrl + R", "help.reset") +
+                row("Delete", "help.delete") +
+                row("Enter", "help.search") +
+                "</table>" +
 
-                String lang = PreferencesHelper.loadLanguage();
-                LanguageHelper.setLocale("ro".equals(lang) ? new Locale("ro") : Locale.ENGLISH);
-            } catch (Exception e) {
-                e.printStackTrace();
-            }
-            new MainFrame().setVisible(true);
-        });
+                // Tips Section
+                "<br><h3 style='color: #E74C3C;'>" + tipsTitle + "</h3>" +
+                "<ul>" +
+                "<li>" + LanguageHelper.getString("help.tip.status") + "</li>" +
+                "<li>" + LanguageHelper.getString("help.tip.jump") + "</li>" +
+                "<li>" + LanguageHelper.getString("help.tip.scroll") + "</li>" +
+                "</ul>" +
+                "</body></html>";
+
+        // 2. Create Custom Dialog (Better than ThemedDialog for HTML)
+        JDialog dialog = new JDialog(this, title, true); // true = modal
+        dialog.setLayout(new BorderLayout());
+
+        // Content Label (Renders HTML)
+        JLabel contentLabel = new JLabel(sb);
+        contentLabel.setBorder(BorderFactory.createEmptyBorder(10, 20, 10, 20));
+        contentLabel.setVerticalAlignment(SwingConstants.TOP);
+
+        // Close Button
+        JButton okButton = new RoundedButton("OK");
+        ButtonStyler.apply(okButton, Theme.BLACK);
+        okButton.addActionListener(_ -> dialog.dispose());
+
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
+        btnPanel.setBackground(Color.WHITE);
+        btnPanel.add(okButton);
+
+        // Assemble
+        JPanel mainPanel = new JPanel(new BorderLayout());
+        mainPanel.setBackground(Color.WHITE);
+        mainPanel.add(contentLabel, BorderLayout.CENTER);
+        mainPanel.add(btnPanel, BorderLayout.SOUTH);
+
+        dialog.add(mainPanel);
+        dialog.pack(); // <--- Auto-sizes the window to fit the content
+        dialog.setLocationRelativeTo(this);
+        dialog.setResizable(false);
+        dialog.setVisible(true);
+    }
+
+    // Helper to build a table row
+    private String row(String keys, String langKey) {
+        return "<tr>" +
+                "<td style='font-weight: bold; color: #333;'>" + keys + "</td>" +
+                "<td style='padding-left: 10px;'>" + LanguageHelper.getString(langKey) + "</td>" +
+                "</tr>";
     }
 }

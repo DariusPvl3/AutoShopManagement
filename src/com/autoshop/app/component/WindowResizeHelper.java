@@ -10,7 +10,6 @@ public class WindowResizeHelper extends MouseAdapter {
     private int cursorDirection = Cursor.DEFAULT_CURSOR;
     private Point startPos = null;
     private Rectangle startBounds = null;
-    private final int BORDER_SIZE = 8; // Sensitivity zone
 
     public static void install(JFrame frame) {
         WindowResizeHelper resizer = new WindowResizeHelper(frame);
@@ -33,6 +32,8 @@ public class WindowResizeHelper extends MouseAdapter {
         int newCursor = Cursor.DEFAULT_CURSOR;
 
         // Corners
+        // Sensitivity zone
+        int BORDER_SIZE = 8;
         if (x < BORDER_SIZE && y < BORDER_SIZE) newCursor = Cursor.NW_RESIZE_CURSOR;
         else if (x > w - BORDER_SIZE && y < BORDER_SIZE) newCursor = Cursor.NE_RESIZE_CURSOR;
         else if (x < BORDER_SIZE && y > h - BORDER_SIZE) newCursor = Cursor.SW_RESIZE_CURSOR;

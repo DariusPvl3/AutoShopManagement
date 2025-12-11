@@ -26,8 +26,8 @@ public class CustomTitleBar extends JPanel {
         JPanel controls = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
         controls.setOpaque(false);
 
-        JButton minimizeBtn = createControlBtn("_", e -> frame.setState(Frame.ICONIFIED));
-        JButton closeBtn = createControlBtn("X", e -> System.exit(0));
+        JButton minimizeBtn = createControlBtn("_", _ -> frame.setState(Frame.ICONIFIED));
+        JButton closeBtn = createControlBtn("X", _ -> System.exit(0));
 
         // Make Close button turn red on hover
         closeBtn.addMouseListener(new java.awt.event.MouseAdapter() {

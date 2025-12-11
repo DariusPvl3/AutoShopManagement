@@ -29,7 +29,7 @@ public class CalendarCustomizer {
         Dimension spinnerSize = new Dimension(100, 35);
 
         // --- STYLE MONTH CHOOSER ---
-        JPanel monthPanel = (JPanel) calendar.getMonthChooser();
+        JPanel monthPanel = calendar.getMonthChooser();
         monthPanel.setBackground(Theme.OFF_WHITE);
         monthPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 0, 25));
 
@@ -46,7 +46,7 @@ public class CalendarCustomizer {
                 l.setFont(headerFont);
                 l.setHorizontalAlignment(SwingConstants.CENTER);
 
-                // Capitalize Text (e.g., "decembrie" -> "Decembrie")
+                // Capitalize Text (e.g., "december" -> "December")
                 String text = l.getText();
                 if (text != null && !text.isEmpty())
                     l.setText(text.substring(0, 1).toUpperCase() + text.substring(1));
@@ -55,7 +55,7 @@ public class CalendarCustomizer {
         });
 
         // --- STYLE YEAR CHOOSER ---
-        JPanel yearPanel = (JPanel) calendar.getYearChooser();
+        JPanel yearPanel = calendar.getYearChooser();
         yearPanel.setPreferredSize(spinnerSize);
         yearPanel.setBackground(Theme.OFF_WHITE);
 
@@ -67,8 +67,7 @@ public class CalendarCustomizer {
         // --- STYLE DAY NAMES (Sun, Mon...) ---
         for (Component comp : dayPanel.getComponents()) {
             // Day Names (Labels)
-            if (comp instanceof JLabel) {
-                JLabel dayLabel = (JLabel) comp;
+            if (comp instanceof JLabel dayLabel) {
                 dayLabel.setFont(new Font("SansSerif", Font.BOLD, 12));
                 String text = dayLabel.getText();
                 if (text != null && !text.isEmpty())
@@ -84,8 +83,7 @@ public class CalendarCustomizer {
 
     private static void styleSpinnerTextField(Container container, Font font) {
         for (Component comp : container.getComponents()) {
-            if (comp instanceof JTextField) {
-                JTextField tf = (JTextField) comp;
+            if (comp instanceof JTextField tf) {
                 tf.setFont(font);
                 tf.setHorizontalAlignment(SwingConstants.CENTER);
                 tf.setBackground(Theme.WHITE);
@@ -100,8 +98,7 @@ public class CalendarCustomizer {
         dateChooser.setFont(font);
 
         for (Component comp : dateChooser.getComponents()) {
-            if (comp instanceof JButton) {
-                JButton btn = (JButton) comp;
+            if (comp instanceof JButton btn) {
                 btn.setPreferredSize(new Dimension(30, 25));
             }
         }

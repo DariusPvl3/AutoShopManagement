@@ -12,8 +12,7 @@ public class StatusCellRenderer extends DefaultTableCellRenderer {
         Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
 
         // Handle Enum Objects
-        if (value instanceof AppointmentStatus) {
-            AppointmentStatus status = (AppointmentStatus) value;
+        if (value instanceof AppointmentStatus status) {
             // Translate
             setText(LanguageHelper.getString(status.getLangKey()));
             // Color

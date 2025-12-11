@@ -73,7 +73,7 @@ public class StatusMenuHelper {
             });
 
             // 5. Action Logic
-            item.addActionListener(e -> {
+            item.addActionListener(_ -> {
                 int selectedRow = table.getSelectedRow();
                 if (selectedRow == -1) return;
 
@@ -90,14 +90,13 @@ public class StatusMenuHelper {
             popupMenu.add(item);
         }
 
-        // --- THE FIX: RESET COLORS ON OPEN ---
+        // --- RESET COLORS ON OPEN ---
         popupMenu.addPopupMenuListener(new PopupMenuListener() {
             @Override
             public void popupMenuWillBecomeVisible(PopupMenuEvent e) {
                 // Iterate through all items and force them back to "Normal" state
                 for (Component comp : popupMenu.getComponents()) {
-                    if (comp instanceof JMenuItem) {
-                        JMenuItem menu = (JMenuItem) comp;
+                    if (comp instanceof JMenuItem menu) {
                         Color defColor = (Color) menu.getClientProperty("defaultColor");
                         if (defColor != null) {
                             menu.setForeground(defColor);

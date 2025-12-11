@@ -109,8 +109,8 @@ public class ThemedDialog extends JDialog {
             ButtonStyler.apply(yesBtn, Theme.RED);
             ButtonStyler.apply(noBtn, Theme.BLACK);
 
-            yesBtn.addActionListener(e -> { confirmed = true; dispose(); });
-            noBtn.addActionListener(e -> { confirmed = false; dispose(); });
+            yesBtn.addActionListener(_ -> { confirmed = true; dispose(); });
+            noBtn.addActionListener(_ -> { confirmed = false; dispose(); });
 
             buttonPanel.add(noBtn);
             buttonPanel.add(yesBtn);
@@ -120,7 +120,7 @@ public class ThemedDialog extends JDialog {
 
             JButton okBtn = new RoundedButton(okText);
             ButtonStyler.apply(okBtn, Theme.RED);
-            okBtn.addActionListener(e -> dispose());
+            okBtn.addActionListener(_ -> dispose());
             buttonPanel.add(okBtn);
         }
 

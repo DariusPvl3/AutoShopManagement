@@ -91,11 +91,4 @@ public class NotificationService {
             Toolkit.getDefaultToolkit().beep();
         }
     }
-
-    public static void stop() {
-        if (timer != null) {
-            timer.cancel();
-            timer = null;
-        }
-    }
 }

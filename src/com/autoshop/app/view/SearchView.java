@@ -1,9 +1,9 @@
 package com.autoshop.app.view;
 
 import com.autoshop.app.component.*;
+import com.autoshop.app.controller.SearchController;
 import com.autoshop.app.model.Appointment;
 import com.autoshop.app.model.AppointmentStatus;
-import com.autoshop.app.util.DatabaseHelper;
 import com.autoshop.app.util.LanguageHelper;
 import com.autoshop.app.util.Theme;
 import com.toedter.calendar.JDateChooser;
@@ -23,33 +23,39 @@ public class SearchView extends JPanel {
     private static final Font LABEL_FONT = new Font("SansSerif", Font.BOLD, 12);
     private static final Font INPUT_FONT = new Font("SansSerif", Font.PLAIN, 14);
 
+    // Controller & Data
+    private final SearchController controller;
+    private final ArrayList<Appointment> resultsList = new ArrayList<>();
+    private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+    private Consumer<Integer> onJumpRequest;
+
+    // Components
     private JLabel keywordLabel, fromLabel, toLabel, statusLabel;
     private JTextField searchField;
     private JDateChooser dateFrom, dateTo;
     private JComboBox<Object> statusFilterBox;
     private JButton searchButton, resetButton;
-
     private JTable resultsTable;
     private DefaultTableModel tableModel;
-
-    private final ArrayList<Appointment> resultsList = new ArrayList<>();
-    private final SimpleDateFormat dateFormat = new SimpleDateFormat("dd/MM/yyyy HH:mm");
-    private Consumer<Integer> onJumpRequest;
 
     public SearchView() {
         setLayout(new BorderLayout());
 
-        // 1. Initialize Components
+        // 1. Initialize Controller
+        this.controller = new SearchController(this);
+
+        // 2. Initialize UI
         initComponents();
 
-        // 2. Build Layout
+        // 3. Build Layout
         add(createFilterPanel(), BorderLayout.NORTH);
         add(createTablePanel(), BorderLayout.CENTER);
 
-        // 3. Setup Logic
+        // 4. Setup Logic
         setupListeners();
         setUpShortcuts();
 
+        // 5. Language Support
         LanguageHelper.addListener(this::updateText);
         updateText();
     }
@@ -106,6 +112,7 @@ public class SearchView extends JPanel {
 
         resultsTable = SwingTableStyler.create(tableModel, 11);
         resultsTable.getColumnModel().getColumn(11).setCellRenderer(new StatusCellRenderer());
+        resultsTable.putClientProperty("empty_msg", "");
 
         return new JScrollPane(resultsTable);
     }
@@ -114,24 +121,24 @@ public class SearchView extends JPanel {
 
     private void performSearch() {
         String keyword = searchField.getText().trim();
-        Date from = dateFrom.getDate();
-        Date to = dateTo.getDate();
+        // Controller handles the heavy lifting
+        java.util.List<Appointment> results = controller.search(
+                keyword,
+                statusFilterBox.getSelectedItem(),
+                dateFrom.getDate(),
+                dateTo.getDate()
+        );
 
-        Object selected = statusFilterBox.getSelectedItem();
-        AppointmentStatus status = (selected instanceof AppointmentStatus) ? (AppointmentStatus) selected : null;
+        resultsList.clear();
+        resultsList.addAll(results);
 
-        try {
-            resultsList.clear();
-            resultsList.addAll(DatabaseHelper.searchAppointments(keyword, status, from, to));
-            refreshTable();
-
-            if (resultsList.isEmpty()) {
-                ThemedDialog.showMessage(this, "Info", LanguageHelper.getString("msg.err.search"));
-            }
-        } catch (Exception e) {
-            e.printStackTrace();
-            ThemedDialog.showMessage(this, LanguageHelper.getString("title.error"), LanguageHelper.getString("msg.err.search"));
+        if (results.isEmpty()) {
+            resultsTable.putClientProperty("empty_msg", LanguageHelper.getString("msg.err.search")); // "No results found"
+        } else {
+            resultsTable.putClientProperty("empty_msg", ""); // Hide message if rows exist
         }
+
+        refreshTable();
     }
 
     private void resetSearch() {
@@ -207,7 +214,7 @@ public class SearchView extends JPanel {
         searchButton.setText(LanguageHelper.getString("btn.search"));
         resetButton.setText(LanguageHelper.getString("btn.reset"));
 
-        // Preserve selection while updating combo box language
+        // Preserve selection while updating combo box
         Object selection = statusFilterBox.getSelectedItem();
         populateStatusBox();
         if (selection instanceof AppointmentStatus) statusFilterBox.setSelectedItem(selection);
@@ -223,8 +230,12 @@ public class SearchView extends JPanel {
                     LanguageHelper.getString("col.observations"), LanguageHelper.getString("col.status")
             };
             tableModel.setColumnIdentifiers(cols);
+
+            // Re-apply renderers and listeners
             resultsTable.getColumnModel().getColumn(11).setCellRenderer(new StatusCellRenderer());
             resultsTable.getTableHeader().setFont(new Font("SansSerif", Font.BOLD, 16));
+
+            // Note: We use performSearch as the callback, so changing status in search view updates DB and list immediately
             StatusMenuHelper.attach(resultsTable, resultsList, this::performSearch, this);
         }
     }
@@ -256,8 +267,7 @@ public class SearchView extends JPanel {
         @Override
         public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
             super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-            if (value instanceof AppointmentStatus) {
-                AppointmentStatus status = (AppointmentStatus) value;
+            if (value instanceof AppointmentStatus status) {
                 setText(LanguageHelper.getString(status.getLangKey()));
                 setForeground(status.getColor());
             }

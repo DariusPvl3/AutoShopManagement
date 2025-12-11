@@ -7,11 +7,14 @@ import com.autoshop.app.model.Client;
 
 import java.sql.*;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.List;
 
 public class DatabaseHelper {
     private static String URL = "jdbc:sqlite:appointments.db";
+
+    // =================================================================================================================
+    //  SECTION 1: CONNECTION & SETUP
+    // =================================================================================================================
 
     public static Connection connect() throws SQLException {
         try {
@@ -26,7 +29,6 @@ public class DatabaseHelper {
         URL = "jdbc:sqlite:" + dbName;
     }
 
-    // 1. CREATE TABLES
     public static void createNewTable() throws SQLException {
         String clientQuery = "CREATE TABLE IF NOT EXISTS Clients ("
                 +"client_id INTEGER PRIMARY KEY AUTOINCREMENT, "
@@ -51,30 +53,37 @@ public class DatabaseHelper {
         }
     }
 
-    // 2. THE SMART INSERT (Transaction)
-    // This ensures we don't duplicate Clients or Cars
+    // =================================================================================================================
+    //  SECTION 2: TRANSACTIONAL OPERATIONS (Add / Update)
+    // =================================================================================================================
+
     public static void addAppointmentTransaction(Appointment appointment) throws SQLException {
         try (Connection conn = connect()) {
-            conn.setAutoCommit(false);
+            conn.setAutoCommit(false); // Start Transaction
             try {
-                // 1. Get/Create the Client
+                // 1. Get/Create the Client ( Robust Check )
                 int clientId = getOrCreateClient(conn, appointment.getClientName(), appointment.getClientPhone());
 
-                // 2. Get/Create the Car
-                int carId = getOrCreateCar(conn, clientId, appointment.getCarLicensePlate(), appointment.getCarBrand(), appointment.getCarModel(), appointment.getCarYear(), appointment.getCarPhotoPath());
+                // 2. Get/Create the Car ( Robust Check )
+                int carId = getOrCreateCar(conn, clientId,
+                        appointment.getCarLicensePlate(),
+                        appointment.getCarBrand(),
+                        appointment.getCarModel(),
+                        appointment.getCarYear(),
+                        appointment.getCarPhotoPath());
 
                 // 3. Create Appointment linking THIS Client and THAT Car
                 String sql = "INSERT INTO Appointments(car_id, client_id, date, problem, repairs, parts_used, observations, status) VALUES(?, ?, ?, ?, ?, ?, ?, ?)";
-                try (PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
-                    preparedStatement.setInt(1, carId);
-                    preparedStatement.setInt(2, clientId);
-                    preparedStatement.setLong(3, appointment.getDate().getTime());
-                    preparedStatement.setString(4, appointment.getProblemDescription());
-                    preparedStatement.setString(5, appointment.getRepairs());
-                    preparedStatement.setString(6, appointment.getPartsUsed());
-                    preparedStatement.setString(7, appointment.getObservations());
-                    preparedStatement.setString(8, AppointmentStatus.SCHEDULED.name());
-                    preparedStatement.executeUpdate();
+                try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                    ps.setInt(1, carId);
+                    ps.setInt(2, clientId);
+                    ps.setLong(3, appointment.getDate().getTime());
+                    ps.setString(4, appointment.getProblemDescription());
+                    ps.setString(5, appointment.getRepairs());
+                    ps.setString(6, appointment.getPartsUsed());
+                    ps.setString(7, appointment.getObservations());
+                    ps.setString(8, AppointmentStatus.SCHEDULED.name());
+                    ps.executeUpdate();
                 }
                 conn.commit();
             } catch (SQLException e) {
@@ -84,106 +93,46 @@ public class DatabaseHelper {
         }
     }
 
-    // Helper: Find client by phone. If not found, create new.
-    private static int getOrCreateClient(Connection conn, String name, String rawPhone) throws SQLException {
-        // 1. Normalize the phone (clean spaces/dashes)
-        String phone = com.autoshop.app.util.Utils.normalizePhone(rawPhone);
+    public static void updateAppointmentTransaction(Appointment appointment) throws SQLException {
+        try (Connection conn = connect()) {
+            conn.setAutoCommit(false); // Start Transaction
+            try {
+                // 1. Resolve the Client ID (Relink logic: find existing or create new)
+                int clientId = getOrCreateClient(conn, appointment.getClientName(), appointment.getClientPhone());
 
-        // 2. Check existence BY PHONE (Unique Identifier)
-        String checkSql = "SELECT client_id, name FROM Clients WHERE phone = ?";
-        try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
-            ps.setString(1, phone);
-            ResultSet rs = ps.executeQuery();
-            if (rs.next()) {
-                // Found a client with this phone.
-                // Optional: You could update their name here if it changed.
-                return rs.getInt("client_id");
+                // 2. Resolve the Car ID (Relink logic: find existing or create new)
+                // Fixes unique constraint crash when switching cars
+                int carId = getOrCreateCar(conn, clientId,
+                        appointment.getCarLicensePlate(),
+                        appointment.getCarBrand(),
+                        appointment.getCarModel(),
+                        appointment.getCarYear(),
+                        appointment.getCarPhotoPath());
+
+                // 3. Update Appointment to point to the correct Client and Car IDs
+                String sqlAppointment = "UPDATE Appointments SET client_id=?, car_id=?, date=?, problem=?, repairs=?, parts_used=?, observations=?, status=? WHERE appointment_id=?";
+                try (PreparedStatement ps = conn.prepareStatement(sqlAppointment)) {
+                    ps.setInt(1, clientId);
+                    ps.setInt(2, carId);
+                    ps.setLong(3, appointment.getDate().getTime());
+                    ps.setString(4, appointment.getProblemDescription());
+                    ps.setString(5, appointment.getRepairs());
+                    ps.setString(6, appointment.getPartsUsed());
+                    ps.setString(7, appointment.getObservations());
+                    ps.setString(8, appointment.getStatus().name());
+                    ps.setInt(9, appointment.getAppointmentID());
+                    ps.executeUpdate();
+                }
+
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                e.printStackTrace();
+                throw e;
             }
         }
-
-        // 3. If phone not found, Create New Client (even if name matches someone else)
-        String insertSql = "INSERT INTO Clients(name, phone) VALUES(?, ?)";
-        try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
-            ps.setString(1, name);
-            ps.setString(2, phone);
-            ps.executeUpdate();
-            return ps.getGeneratedKeys().getInt(1);
-        }
     }
 
-    // Get Today's appointments OR any appointment that is currently IN_PROGRESS
-    public static List<Appointment> getDashboardAppointments(java.util.Date day) throws SQLException {
-        List<Appointment> list = new ArrayList<>();
-
-        // Calculate Today's Range
-        java.util.Calendar cal = java.util.Calendar.getInstance();
-        cal.setTime(day);
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
-        cal.set(java.util.Calendar.MINUTE, 0);
-        cal.set(java.util.Calendar.SECOND, 0);
-        cal.set(java.util.Calendar.MILLISECOND, 0);
-        long start = cal.getTimeInMillis();
-
-        cal.set(java.util.Calendar.HOUR_OF_DAY, 23);
-        cal.set(java.util.Calendar.MINUTE, 59);
-        cal.set(java.util.Calendar.SECOND, 59);
-        cal.set(java.util.Calendar.MILLISECOND, 999);
-        String sql = getString(cal, start);
-
-        return getAppointments(list, sql);
-    }
-
-    private static String getString(Calendar cal, long start) {
-        long end = cal.getTimeInMillis();
-
-        // The Hybrid SQL
-        return "SELECT app.appointment_id, app.date, app.problem, app.repairs, app.parts_used, app.observations, app.status, " +
-                "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
-                "client.name, client.phone " +
-                "FROM Appointments app " +
-                "JOIN Cars car ON app.car_id = car.car_id " +
-                "JOIN Clients client ON car.client_id = client.client_id " +
-                "WHERE (app.date >= " + start + " AND app.date <= " + end + ") " +
-                "OR (app.status = 'IN_PROGRESS')";
-    }
-
-    // Helper: Find car by plate. If not found, create new.
-    private static int getOrCreateCar(Connection conn, int clientId, String plate, String brand, String model, int year, String photoPath) throws SQLException {
-        String checkSql = "SELECT car_id FROM Cars WHERE license_plate = ?";
-        try (PreparedStatement preparedStatement = conn.prepareStatement(checkSql)) {
-            preparedStatement.setString(1, plate);
-            ResultSet rs = preparedStatement.executeQuery();
-            if (rs.next()) return rs.getInt("car_id");
-        }
-
-        // Insert to Database
-        String insertSql = "INSERT INTO Cars(client_id, license_plate, brand_name, model, year, photo_path) VALUES(?, ?, ?, ?, ?, ?)";
-        try (PreparedStatement preparedStatement = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
-            preparedStatement.setInt(1, clientId);
-            preparedStatement.setString(2, plate);
-            preparedStatement.setString(3, brand);
-            preparedStatement.setString(4, model);
-            preparedStatement.setInt(5, year);
-            preparedStatement.setString(6, photoPath);
-            preparedStatement.executeUpdate();
-            return preparedStatement.getGeneratedKeys().getInt(1);
-        }
-    }
-
-    // 3. GET ALL
-    public static List<Appointment> getAllAppointments() throws SQLException {
-        List<Appointment> list = new ArrayList<>();
-        String sql = "SELECT app.appointment_id, app.date, app.problem, app.repairs, app.parts_used, app.observations, app.status, " +
-                "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
-                "client.name, client.phone " +
-                "FROM Appointments app " +
-                "JOIN Cars car ON app.car_id = car.car_id " +
-                "JOIN Clients client ON app.client_id = client.client_id";
-
-        return getAppointments(list, sql);
-    }
-
-    // 4. DELETE
     public static void deleteAppointment(int id) throws SQLException {
         String sql = "DELETE FROM Appointments WHERE appointment_id = ?";
         try (Connection conn = connect(); PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
@@ -192,83 +141,18 @@ public class DatabaseHelper {
         }
     }
 
-    public static void updateAppointmentTransaction(Appointment appointment) throws SQLException {
-        try (Connection conn = connect()) {
-            conn.setAutoCommit(false); // Start Transaction
-            try {
-                // 1. Resolve the Client ID
-                // Instead of overwriting the old client's data, we find/create the correct client
-                // for the currently entered Name/Phone.
-                int clientId = getOrCreateClient(conn, appointment.getClientName(), appointment.getClientPhone());
+    // =================================================================================================================
+    //  SECTION 3: DATA RETRIEVAL (Getters)
+    // =================================================================================================================
 
-                // 2. Update Appointment (Now including the link to the correct Client)
-                // Note: We added client_id to the SET list
-                String sqlAppointment = "UPDATE Appointments SET client_id=?, date=?, problem=?, repairs=?, parts_used=?, observations=?, status=? WHERE appointment_id=?";
-                try (PreparedStatement ps = conn.prepareStatement(sqlAppointment)) {
-                    ps.setInt(1, clientId);
-                    ps.setLong(2, appointment.getDate().getTime());
-                    ps.setString(3, appointment.getProblemDescription());
-                    ps.setString(4, appointment.getRepairs());
-                    ps.setString(5, appointment.getPartsUsed());
-                    ps.setString(6, appointment.getObservations());
-                    ps.setString(7, appointment.getStatus().name());
-                    ps.setInt(8, appointment.getAppointmentID());
-                    ps.executeUpdate();
-                }
-
-                // 3. Update Car Details
-                String sqlCar = "UPDATE Cars SET license_plate=?, brand_name=?, model=?, year=?, photo_path=? WHERE car_id=?";
-                try (PreparedStatement ps = conn.prepareStatement(sqlCar)) {
-                    ps.setString(1, appointment.getCarLicensePlate());
-                    ps.setString(2, appointment.getCarBrand());
-                    ps.setString(3, appointment.getCarModel());
-                    ps.setInt(4, appointment.getCarYear());
-                    ps.setString(5, appointment.getCarPhotoPath());
-                    ps.setInt(6, appointment.getCarID());
-
-                    int rows = ps.executeUpdate();
-                    if (rows == 0) {
-                        // This helps us catch if the ID was wrong
-                        System.err.println("CRITICAL ERROR: No car found with ID " + appointment.getCarID());
-                        throw new SQLException("Car record missing! ID: " + appointment.getCarID());
-                    }
-                }
-
-                conn.commit(); // Apply changes
-            } catch (SQLException e) {
-                conn.rollback(); // Undo everything if ANY step failed
-                e.printStackTrace();
-                throw e; // Re-throw so the UI shows the error dialog
-            }
-        }
-    }
-
-    // 5. GET FILTERED
-    public static List<Appointment> getAppointmentsForDay(java.util.Date day) throws SQLException {
+    public static List<Appointment> getAllAppointments() throws SQLException {
         List<Appointment> list = new ArrayList<>();
-
-        Calendar cal = Calendar.getInstance();
-        cal.setTime(day);
-
-        cal.set(Calendar.HOUR_OF_DAY, 0);
-        cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MILLISECOND, 0);
-        long start = cal.getTimeInMillis();
-
-        cal.set(Calendar.HOUR_OF_DAY, 23);
-        cal.set(Calendar.MINUTE, 59);
-        cal.set(Calendar.SECOND, 59);
-        cal.set(Calendar.MILLISECOND, 999);
-        long end = cal.getTimeInMillis();
-
         String sql = "SELECT app.appointment_id, app.date, app.problem, app.repairs, app.parts_used, app.observations, app.status, " +
                 "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
                 "client.name, client.phone " +
                 "FROM Appointments app " +
                 "JOIN Cars car ON app.car_id = car.car_id " +
-                "JOIN Clients client ON car.client_id = client.client_id " +
-                "WHERE app.date >= " + start + " AND app.date <= " + end;
+                "JOIN Clients client ON app.client_id = client.client_id";
 
         return getAppointments(list, sql);
     }
@@ -286,50 +170,34 @@ public class DatabaseHelper {
         return getAppointments(list, sql);
     }
 
-    private static List<Appointment> getAppointments(List<Appointment> list, String sql) throws SQLException {
-        try (Connection conn = connect();
-             Statement stmt = conn.createStatement();
-             ResultSet rs = stmt.executeQuery(sql)) {
+    public static List<Appointment> getDashboardAppointments(java.util.Date day) throws SQLException {
+        List<Appointment> list = new ArrayList<>();
 
-            while (rs.next()) {
-                Appointment appointment = new Appointment(
-                        rs.getInt("appointment_id"),
-                        rs.getInt("car_id"),
-                        new Date(rs.getLong("date")),
-                        rs.getString("problem"),
-                        rs.getString("repairs"),
-                        rs.getString("parts_used"),
-                        rs.getString("observations"),
-                        AppointmentStatus.valueOf(rs.getString("status")),
-                        rs.getString("name"),
-                        rs.getString("phone"),
-                        rs.getString("license_plate"),
-                        rs.getString("brand_name"),
-                        rs.getString("model"),
-                        rs.getInt("year"),
-                        rs.getString("photo_path")
-                );
-                list.add(appointment);
-            }
-        }
-        return list;
-    }
+        // Calculate Today's Range
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        cal.setTime(day);
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 0);
+        cal.set(java.util.Calendar.MINUTE, 0);
+        cal.set(java.util.Calendar.SECOND, 0);
+        cal.set(java.util.Calendar.MILLISECOND, 0);
+        long start = cal.getTimeInMillis();
 
-    // AUTOMATION: Auto-start appointments if time has passed
-    public static void autoUpdateStatuses() throws SQLException {
-        long now = System.currentTimeMillis();
-        String sql = "UPDATE Appointments SET status = 'IN_PROGRESS' WHERE date <= ? AND status = 'SCHEDULED'";
+        cal.set(java.util.Calendar.HOUR_OF_DAY, 23);
+        cal.set(java.util.Calendar.MINUTE, 59);
+        cal.set(java.util.Calendar.SECOND, 59);
+        cal.set(java.util.Calendar.MILLISECOND, 999);
+        long end = cal.getTimeInMillis();
 
-        try (Connection conn = connect();
-             PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
+        String sql = "SELECT app.appointment_id, app.date, app.problem, app.repairs, app.parts_used, app.observations, app.status, " +
+                "car.car_id, car.license_plate, car.brand_name, car.model, car.year, car.photo_path, " +
+                "client.name, client.phone " +
+                "FROM Appointments app " +
+                "JOIN Cars car ON app.car_id = car.car_id " +
+                "JOIN Clients client ON car.client_id = client.client_id " +
+                "WHERE (app.date >= " + start + " AND app.date <= " + end + ") " +
+                "OR (app.status = 'IN_PROGRESS')";
 
-            preparedStatement.setLong(1, now);
-            int rowsUpdated = preparedStatement.executeUpdate();
-
-            if (rowsUpdated > 0) {
-                System.out.println("Auto-updated " + rowsUpdated + " appointments to IN_PROGRESS.");
-            }
-        }
+        return getAppointments(list, sql);
     }
 
     public static List<Appointment> searchAppointments(String rawKeywords, AppointmentStatus status, java.util.Date from, java.util.Date to) throws SQLException {
@@ -353,14 +221,11 @@ public class DatabaseHelper {
         if (from != null) sql.append("AND app.date >= ? ");
         if (to != null)   sql.append("AND app.date <= ? ");
 
-        // 3. Handle Smart Keywords (Split by space)
+        // 3. Handle Smart Keywords
         String[] tokens = null;
         if (rawKeywords != null && !rawKeywords.isEmpty()) {
-            tokens = rawKeywords.trim().split("\\s+"); // Split by whitespace
-
+            tokens = rawKeywords.trim().split("\\s+");
             for (int i = 0; i < tokens.length; i++) {
-                // For each word, we require a match in AT LEAST ONE of the fields
-                // AND ( ... OR ... OR ...)
                 sql.append("AND (")
                         .append("client.name LIKE ? OR ")
                         .append("client.phone LIKE ? OR ")
@@ -371,9 +236,7 @@ public class DatabaseHelper {
                         .append("app.repairs LIKE ? OR ")
                         .append("app.parts_used LIKE ? OR ")
                         .append("app.observations LIKE ? OR ")
-                        // Check raw input against plate
                         .append("car.license_plate LIKE ? OR ")
-                        // Check formatted input against plate (TM12ABC -> matches TM-12-ABC)
                         .append("car.license_plate LIKE ? ")
                         .append(") ");
             }
@@ -383,8 +246,7 @@ public class DatabaseHelper {
              PreparedStatement preparedStatement = conn.prepareStatement(sql.toString())) {
             int index = 1;
             // Fill Status
-            if (status != null)
-                preparedStatement.setString(index++, status.name());
+            if (status != null) preparedStatement.setString(index++, status.name());
             // Fill Dates
             if (from != null) {
                 java.util.Calendar cal = java.util.Calendar.getInstance();
@@ -406,79 +268,36 @@ public class DatabaseHelper {
             if (tokens != null) {
                 for (String token : tokens) {
                     String pattern = "%" + token + "%";
-                    // Client Name
-                    preparedStatement.setString(index++, pattern);
-                    // Phone
-                    preparedStatement.setString(index++, pattern);
-                    // Brand
-                    preparedStatement.setString(index++, pattern);
-                    // Model
-                    preparedStatement.setString(index++, pattern);
-                    // Year
-                    preparedStatement.setString(index++, pattern);
-                    // Problem
-                    preparedStatement.setString(index++, pattern);
-                    // Repairs
-                    preparedStatement.setString(index++, pattern);
-                    // Parts used
-                    preparedStatement.setString(index++, pattern);
-                    // Observations
-                    preparedStatement.setString(index++, pattern);
-                    // Plate (Raw)
-                    preparedStatement.setString(index++, pattern);
-                    // Plate (Formatted)
-                    // If user types "tm12abc", Utils formats to "TM-12-ABC"
-                    // If user types "Audi", Utils returns "AUDI" (no hyphens), which is fine
-                    String formattedPlate = Utils.formatPlate(token);
+                    // Loop to fill ? for each field
+                    for(int k=0; k<10; k++) preparedStatement.setString(index++, pattern);
+
+                    // Plate Formatted
+                    String formattedPlate = com.autoshop.app.util.Utils.formatPlate(token);
                     String patternFormatted = "%" + formattedPlate + "%";
                     preparedStatement.setString(index++, patternFormatted);
                 }
             }
-            // Execute
+
             try (ResultSet rs = preparedStatement.executeQuery()) {
                 while (rs.next()) {
-                    Appointment appointment = new Appointment(
-                            rs.getInt("appointment_id"),
-                            rs.getInt("car_id"),
-                            new Date(rs.getLong("date")),
-                            rs.getString("problem"),
-                            rs.getString("repairs"),
-                            rs.getString("parts_used"),
-                            rs.getString("observations"),
-                            AppointmentStatus.valueOf(rs.getString("status").toUpperCase()),
-                            rs.getString("name"),
-                            rs.getString("phone"),
-                            rs.getString("license_plate"),
-                            rs.getString("brand_name"),
-                            rs.getString("model"),
-                            rs.getInt("year"),
-                            rs.getString("photo_path")
-                    );
-                    list.add(appointment);
+                    list.add(extractAppointment(rs));
                 }
             }
         }
         return list;
     }
 
-    // PARTIAL SEARCHES
+    // =================================================================================================================
+    //  SECTION 4: AUTOCOMPLETE HELPERS
+    // =================================================================================================================
+
     public static List<Client> getClientsByName(String partialName) throws SQLException {
         List<Client> clientList = new ArrayList<>();
         String sql = "SELECT * FROM Clients WHERE name LIKE ?";
-
-        try (Connection conn = connect();
-             PreparedStatement preparedStatement = conn.prepareStatement(sql)) {
-
-            preparedStatement.setString(1, "%" + partialName + "%");
-            ResultSet rs = preparedStatement.executeQuery();
-
-            while (rs.next()) {
-                Client client = new Client(
-                        rs.getInt("client_id"),
-                        rs.getString("name"),
-                        rs.getString("phone"));
-                clientList.add(client);
-            }
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, "%" + partialName + "%");
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) clientList.add(new Client(rs.getInt("client_id"), rs.getString("name"), rs.getString("phone")));
         }
         return clientList;
     }
@@ -486,42 +305,22 @@ public class DatabaseHelper {
     public static List<Client> getClientsByPhone(String partialPhone) throws SQLException {
         List<Client> clientList = new ArrayList<>();
         String sql = "SELECT * FROM Clients WHERE phone LIKE ?";
-        try (Connection conn = connect();
-        PreparedStatement preparedStatement = conn.prepareStatement(sql);) {
-            preparedStatement.setString(1, partialPhone + "%");
-            ResultSet rs = preparedStatement.executeQuery();
-            while (rs.next()) {
-                Client client = new Client(
-                        rs.getInt("client_id"),
-                        rs.getString("name"),
-                        rs.getString("phone")
-                );
-                clientList.add(client);
-            }
-        };
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, partialPhone + "%");
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) clientList.add(new Client(rs.getInt("client_id"), rs.getString("name"), rs.getString("phone")));
+        }
         return clientList;
     }
 
     public static List<Car> getCarModelsByBrand(String brand, String partialModel) throws SQLException {
         List<Car> carList = new ArrayList<>();
         String sql = "SELECT * FROM Cars WHERE brand_name = ? AND model LIKE ?";
-        try (Connection conn = connect();
-        PreparedStatement preparedStatement = conn.prepareStatement(sql);) {
-            preparedStatement.setString(1, brand);
-            preparedStatement.setString(2, partialModel + "%");
-            ResultSet rs = preparedStatement.executeQuery();
-            while (rs.next()) {
-                Car car = new Car(
-                        rs.getInt("car_id"),
-                        rs.getInt("client_id"),
-                        rs.getString("license_plate"),
-                        rs.getString("brand_name"),
-                        rs.getString("model"),
-                        rs.getInt("year"),
-                        rs.getString("photo_path")
-                );
-                carList.add(car);
-            }
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, brand);
+            ps.setString(2, partialModel + "%");
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) carList.add(extractCar(rs));
         }
         return carList;
     }
@@ -529,23 +328,143 @@ public class DatabaseHelper {
     public static List<Car> getCarDetailsByPlate(String plate) throws SQLException {
         List<Car> carList = new ArrayList<>();
         String sql = "SELECT * FROM Cars WHERE license_plate LIKE ?";
-        try (Connection conn = connect();
-             PreparedStatement preparedStatement = conn.prepareStatement(sql);) {
-            preparedStatement.setString(1, plate + "%");
-            ResultSet rs = preparedStatement.executeQuery();
-            while (rs.next()) {
-                Car car = new Car(
-                        rs.getInt("car_id"),
-                        rs.getInt("client_id"),
-                        rs.getString("license_plate"),
-                        rs.getString("brand_name"),
-                        rs.getString("model"),
-                        rs.getInt("year"),
-                        rs.getString("photo_path")
-                );
-                carList.add(car);
-            }
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, plate + "%");
+            ResultSet rs = ps.executeQuery();
+            while (rs.next()) carList.add(extractCar(rs));
         }
         return carList;
+    }
+
+    // =================================================================================================================
+    //  SECTION 5: INTERNAL HELPERS (Private)
+    // =================================================================================================================
+
+    // Helper: Find client by phone. If found, update name. If not found, create new.
+    private static int getOrCreateClient(Connection conn, String name, String rawPhone) throws SQLException {
+        String phone = com.autoshop.app.util.Utils.normalizePhone(rawPhone);
+        int clientId = -1;
+
+        // Check existence
+        String checkSql = "SELECT client_id FROM Clients WHERE phone = ?";
+        try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+            ps.setString(1, phone);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) clientId = rs.getInt("client_id");
+        }
+
+        if (clientId != -1) {
+            // Update name if changed
+            String updateSql = "UPDATE Clients SET name=? WHERE client_id=?";
+            try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                ps.setString(1, com.autoshop.app.util.Utils.toTitleCase(name));
+                ps.setInt(2, clientId);
+                ps.executeUpdate();
+            }
+            return clientId;
+        } else {
+            // Create New
+            String insertSql = "INSERT INTO Clients(name, phone) VALUES(?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setString(1, com.autoshop.app.util.Utils.toTitleCase(name));
+                ps.setString(2, phone);
+                ps.executeUpdate();
+                return ps.getGeneratedKeys().getInt(1);
+            }
+        }
+    }
+
+    // Helper: Find car by plate. If found, update details. If not found, create new.
+    private static int getOrCreateCar(Connection conn, int clientId, String plate, String brand, String model, int year, String photoPath) throws SQLException {
+        int carId = -1;
+
+        // Check existence
+        String checkSql = "SELECT car_id FROM Cars WHERE license_plate = ?";
+        try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+            ps.setString(1, plate);
+            ResultSet rs = ps.executeQuery();
+            if (rs.next()) carId = rs.getInt("car_id");
+        }
+
+        if (carId != -1) {
+            // Update Details & Link to Client
+            String updateSql = "UPDATE Cars SET brand_name=?, model=?, year=?, photo_path=?, client_id=? WHERE car_id=?";
+            try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                ps.setString(1, brand);
+                ps.setString(2, model);
+                ps.setInt(3, year);
+                ps.setString(4, photoPath);
+                ps.setInt(5, clientId);
+                ps.setInt(6, carId);
+                ps.executeUpdate();
+            }
+            return carId;
+        } else {
+            // Create New
+            String insertSql = "INSERT INTO Cars(client_id, license_plate, brand_name, model, year, photo_path) VALUES(?, ?, ?, ?, ?, ?)";
+            try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+                ps.setInt(1, clientId);
+                ps.setString(2, plate);
+                ps.setString(3, brand);
+                ps.setString(4, model);
+                ps.setInt(5, year);
+                ps.setString(6, photoPath);
+                ps.executeUpdate();
+                return ps.getGeneratedKeys().getInt(1);
+            }
+        }
+    }
+
+    private static List<Appointment> getAppointments(List<Appointment> list, String sql) throws SQLException {
+        try (Connection conn = connect();
+             Statement stmt = conn.createStatement();
+             ResultSet rs = stmt.executeQuery(sql)) {
+            while (rs.next()) {
+                list.add(extractAppointment(rs));
+            }
+        }
+        return list;
+    }
+
+    private static Appointment extractAppointment(ResultSet rs) throws SQLException {
+        return new Appointment(
+                rs.getInt("appointment_id"),
+                rs.getInt("car_id"),
+                new Date(rs.getLong("date")),
+                rs.getString("problem"),
+                rs.getString("repairs"),
+                rs.getString("parts_used"),
+                rs.getString("observations"),
+                AppointmentStatus.valueOf(rs.getString("status")),
+                rs.getString("name"),
+                rs.getString("phone"),
+                rs.getString("license_plate"),
+                rs.getString("brand_name"),
+                rs.getString("model"),
+                rs.getInt("year"),
+                rs.getString("photo_path")
+        );
+    }
+
+    private static Car extractCar(ResultSet rs) throws SQLException {
+        return new Car(
+                rs.getInt("car_id"),
+                rs.getInt("client_id"),
+                rs.getString("license_plate"),
+                rs.getString("brand_name"),
+                rs.getString("model"),
+                rs.getInt("year"),
+                rs.getString("photo_path")
+        );
+    }
+
+    public static void autoUpdateStatuses() throws SQLException {
+        long now = System.currentTimeMillis();
+        String sql = "UPDATE Appointments SET status = 'IN_PROGRESS' WHERE date <= ? AND status = 'SCHEDULED'";
+        try (Connection conn = connect(); PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setLong(1, now);
+            int rows = ps.executeUpdate();
+            if(rows > 0) System.out.println("Auto-updated " + rows + " appointments.");
+        }
     }
 }
