@@ -77,7 +77,7 @@ public class MainFrame extends JFrame {
         JPanel topSection = new JPanel(new BorderLayout());
 
         // A. Title Bar
-        topSection.add(new CustomTitleBar(this, "AutoShop Scheduler V1.4.2"), BorderLayout.NORTH);
+        topSection.add(new CustomTitleBar(this, "AutoShop Scheduler V1.4.3"), BorderLayout.NORTH);
 
         // B. Menu
         JPanel menuPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 10));
@@ -122,12 +122,12 @@ public class MainFrame extends JFrame {
     // --- LOGIC & WIRING ---
 
     private void setupNavigation() {
-        homeButton.addActionListener(_ -> cardLayout.show(mainPanel, "HOME"));
-        appointmentButton.addActionListener(_ -> cardLayout.show(mainPanel, "APPOINTMENTS"));
-        searchButton.addActionListener(_ -> cardLayout.show(mainPanel, "SEARCH"));
-        settingsButton.addActionListener(_ -> cardLayout.show(mainPanel, "SETTINGS"));
+        homeButton.addActionListener(e -> cardLayout.show(mainPanel, "HOME"));
+        appointmentButton.addActionListener(e -> cardLayout.show(mainPanel, "APPOINTMENTS"));
+        searchButton.addActionListener(e -> cardLayout.show(mainPanel, "SEARCH"));
+        settingsButton.addActionListener(e -> cardLayout.show(mainPanel, "SETTINGS"));
 
-        helpButton.addActionListener(_ -> showHelpDialog());
+        helpButton.addActionListener(e -> showHelpDialog());
 
         // Default View
         cardLayout.show(mainPanel, "HOME");
@@ -217,7 +217,7 @@ public class MainFrame extends JFrame {
         // Close Button
         JButton okButton = new RoundedButton("OK");
         ButtonStyler.apply(okButton, Theme.BLACK);
-        okButton.addActionListener(_ -> dialog.dispose());
+        okButton.addActionListener(e -> dialog.dispose());
 
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT));
         btnPanel.setBackground(Color.WHITE);

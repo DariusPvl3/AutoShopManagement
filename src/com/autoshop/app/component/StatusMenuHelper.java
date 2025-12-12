@@ -73,7 +73,7 @@ public class StatusMenuHelper {
             });
 
             // 5. Action Logic
-            item.addActionListener(_ -> {
+            item.addActionListener(e -> {
                 int selectedRow = table.getSelectedRow();
                 if (selectedRow == -1) return;
 

@@ -415,7 +415,7 @@ public class AppointmentFormManager {
 
         final Date[] trackingDate = { (Date) timeSpinner.getValue() };
 
-        timeSpinner.addChangeListener(_ -> {
+        timeSpinner.addChangeListener(e -> {
             Date newTime = (Date) timeSpinner.getValue();
             Date currentSelectedDate = dateChooser.getDate();
 
@@ -474,7 +474,7 @@ public class AppointmentFormManager {
 
     private void setupAutoFillListeners() {
         // 1. Phone Selected -> Fill Name
-        phoneField.addActionListener(_ -> {
+        phoneField.addActionListener(e -> {
             if (!phoneField.isPopupVisible()) {
                 String selectedPhone = (String) phoneField.getEditor().getItem();
                 if (selectedPhone != null && !selectedPhone.isEmpty()) {
@@ -484,7 +484,7 @@ public class AppointmentFormManager {
                         java.util.List<Client> clients = DatabaseHelper.getClientsByPhone(cleanPhone);
                         if (!clients.isEmpty()) {
                             // Avoid overwriting if name is already set?
-                            nameField.setSelectedItem(clients.getFirst().getClientName());
+                            nameField.setSelectedItem(clients.get(0).getClientName());
                         }
                     } catch (SQLException ex) {
                         ex.printStackTrace();
@@ -494,7 +494,7 @@ public class AppointmentFormManager {
         });
 
         // 2. Name Selected -> Fill Phone
-        nameField.addActionListener(_ -> {
+        nameField.addActionListener(e -> {
             if (!nameField.isPopupVisible()) {
                 String selectedName = (String) nameField.getEditor().getItem();
                 String currentPhone = (String) phoneField.getEditor().getItem();
@@ -504,7 +504,7 @@ public class AppointmentFormManager {
                     try {
                         java.util.List<Client> clients = DatabaseHelper.getClientsByName(selectedName);
                         if (!clients.isEmpty()) {
-                            phoneField.setSelectedItem(clients.getFirst().getClientPhone());
+                            phoneField.setSelectedItem(clients.get(0).getClientPhone());
                         }
                     } catch (SQLException ex) {
                         ex.printStackTrace();
@@ -514,14 +514,14 @@ public class AppointmentFormManager {
         });
 
         // 3. License Plate Selected -> Fill Car Details
-        carLicensePlateField.addActionListener(_ -> {
+        carLicensePlateField.addActionListener(e -> {
             if (!carLicensePlateField.isPopupVisible()) {
                 String selectedPlate = (String) carLicensePlateField.getEditor().getItem();
                 if (selectedPlate != null && !selectedPlate.isEmpty()) {
                     try {
                         java.util.List<Car> cars = DatabaseHelper.getCarDetailsByPlate(selectedPlate);
                         if (!cars.isEmpty()) {
-                            Car car = cars.getFirst();
+                            Car car = cars.get(0);
 
                             // Fill fields
                             carBrandBox.setSelectedItem(car.getCarBrand());

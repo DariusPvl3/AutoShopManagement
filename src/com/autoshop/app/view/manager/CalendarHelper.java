@@ -35,11 +35,11 @@ public class CalendarHelper {
         menu.add(new JSeparator());
         menu.add(createItem);
 
-        viewItem.addActionListener(_ -> {
+        viewItem.addActionListener(e -> {
             if (onViewAction != null) onViewAction.accept(calendar.getDate());
         });
 
-        createItem.addActionListener(_ -> {
+        createItem.addActionListener(e -> {
             if (onCreateAction != null) onCreateAction.accept(calendar.getDate());
         });
 

@@ -12,7 +12,7 @@ public class DigitalClock extends JLabel {
         setHorizontalAlignment(SwingConstants.RIGHT);
 
         // Update every 1000ms (1 second)
-        Timer t = new Timer(1000, _ -> updateTime());
+        Timer t = new Timer(1000, e -> updateTime());
         t.start();
         updateTime();
     }

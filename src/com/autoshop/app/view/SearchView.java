@@ -172,9 +172,9 @@ public class SearchView extends JPanel {
     // --- LISTENERS ---
 
     private void setupListeners() {
-        searchButton.addActionListener(_ -> performSearch());
-        searchField.addActionListener(_ -> performSearch());
-        resetButton.addActionListener(_ -> resetSearch());
+        searchButton.addActionListener(e -> performSearch());
+        searchField.addActionListener(e -> performSearch());
+        resetButton.addActionListener(e -> resetSearch());
 
         resultsTable.addMouseListener(new MouseAdapter() {
             @Override

@@ -140,26 +140,26 @@ public class SettingsView extends JPanel {
     // --- LISTENERS ---
 
     private void setupListeners() {
-        backupBtn.addActionListener(_ -> controller.backupData());
-        restoreBtn.addActionListener(_ -> controller.restoreData());
+        backupBtn.addActionListener(e -> controller.backupData());
+        restoreBtn.addActionListener(e -> controller.restoreData());
 
-        btnEn.addActionListener(_ -> {
+        btnEn.addActionListener(e -> {
             controller.setLanguage("en", Locale.ENGLISH);
             highlightLanguage("en");
         });
 
-        btnRo.addActionListener(_ -> {
+        btnRo.addActionListener(e -> {
             controller.setLanguage("ro", new Locale("ro"));
             highlightLanguage("ro");
         });
 
-        enableNotifBox.addActionListener(_ -> {
+        enableNotifBox.addActionListener(e -> {
             boolean isSelected = enableNotifBox.isSelected();
             controller.setNotificationsEnabled(isSelected);
             timeSpinner.setEnabled(isSelected);
         });
 
-        timeSpinner.addChangeListener(_ -> controller.setNotificationTime((Integer) timeSpinner.getValue()));
+        timeSpinner.addChangeListener(e -> controller.setNotificationTime((Integer) timeSpinner.getValue()));
     }
 
     // --- VIEW HELPERS ---

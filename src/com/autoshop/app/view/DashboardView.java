@@ -177,7 +177,7 @@ public class DashboardView extends JPanel {
     }
 
     private void setupAutoRefresh() {
-        new Timer(30000, _ -> {
+        new Timer(30000, e -> {
             if (agendaTable != null && !agendaTable.isEditing()) {
                 int selectedRow = agendaTable.getSelectedRow();
                 // Simple refresh logic (Controller handles data, View handles table state)

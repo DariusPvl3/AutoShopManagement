@@ -36,7 +36,7 @@ public class DatabaseHelperTest {
         Assertions.assertEquals(1, testList.size(), "Appointment should have been added.");
 
         // Test 2: Check if info about appointment was added by checking client name
-        Assertions.assertEquals("Test", testList.getFirst().getClientName(), "Client name should have been added.");
+        Assertions.assertEquals("Test", testList.get(0).getClientName(), "Client name should have been added.");
     }
 
     @Test
@@ -45,7 +45,7 @@ public class DatabaseHelperTest {
         Appointment test2 = new Appointment("Test2", "0712 345 678", "BZ02TST", "TestCar", "TestModel", 2000, "testPath2", testDate, "Test Description", "Test Repairs", "Test Parts", "Test Observations");
         DatabaseHelper.addAppointmentTransaction(test2);
         List<Appointment> all =  DatabaseHelper.getAllAppointments();
-        Appointment savedAppointment = all.getFirst();
+        Appointment savedAppointment = all.get(0);
         int realID = savedAppointment.getAppointmentID();
         DatabaseHelper.deleteAppointment(realID);
         List<Appointment> checkList = DatabaseHelper.getAllAppointments();
@@ -60,7 +60,7 @@ public class DatabaseHelperTest {
         DatabaseHelper.addAppointmentTransaction(original);
 
         // 2. Fetch it to get the ID
-        Appointment saved = DatabaseHelper.getAllAppointments().getFirst();
+        Appointment saved = DatabaseHelper.getAllAppointments().get(0);
 
         // 3. Modify it (Change Name, Phone, and Status)
         saved.setClientName("Johnathan Doe");
@@ -71,7 +71,7 @@ public class DatabaseHelperTest {
         DatabaseHelper.updateAppointmentTransaction(saved);
 
         // 5. Fetch again and Verify
-        Appointment updated = DatabaseHelper.getAllAppointments().getFirst();
+        Appointment updated = DatabaseHelper.getAllAppointments().get(0);
 
         Assertions.assertEquals("Johnathan Doe", updated.getClientName(), "Client Name should update");
         Assertions.assertEquals("0799999999", updated.getClientPhone(), "Client Phone should update");
@@ -88,12 +88,12 @@ public class DatabaseHelperTest {
         // 1. Search by Brand "Audi"
         List<Appointment> results = DatabaseHelper.searchAppointments("Audi", null, null, null);
         Assertions.assertEquals(1, results.size(), "Search for 'Audi' should return 1 result");
-        Assertions.assertEquals("Audi", results.getFirst().getCarBrand());
+        Assertions.assertEquals("Audi", results.get(0).getCarBrand());
 
         // 2. Search by License Plate partial "02"
         results = DatabaseHelper.searchAppointments("02", null, null, null);
         Assertions.assertEquals(1, results.size(), "Search for '02' should find the BMW");
-        Assertions.assertEquals("TM02B", results.getFirst().getCarLicensePlate());
+        Assertions.assertEquals("TM02B", results.get(0).getCarLicensePlate());
 
         // 3. Search for non-existent
         results = DatabaseHelper.searchAppointments("Mercedes", null, null, null);
@@ -116,7 +116,7 @@ public class DatabaseHelperTest {
         DatabaseHelper.autoUpdateStatuses();
 
         // 4. Verify it flipped to IN_PROGRESS
-        Appointment result = DatabaseHelper.getAllAppointments().getFirst();
+        Appointment result = DatabaseHelper.getAllAppointments().get(0);
         Assertions.assertEquals(AppointmentStatus.IN_PROGRESS, result.getStatus(), "Past SCHEDULED appointment should become IN_PROGRESS");
     }
 
