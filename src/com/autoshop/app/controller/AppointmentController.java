@@ -42,10 +42,12 @@ public class AppointmentController {
             return;
         }
 
+        String portablePhotoPath = com.autoshop.app.util.StorageHelper.copyToAppStorage(data.photo);
+
         // 3. Create Object
         Appointment newAppt = new Appointment(
                 data.name, data.phone, data.plate, data.brand, data.model,
-                data.year, data.photo, data.date, data.problem,
+                data.year, portablePhotoPath, data.date, data.problem,
                 data.repairs, data.parts, data.obs
         );
 
@@ -91,7 +93,8 @@ public class AppointmentController {
         selected.setRepairs(data.repairs);
         selected.setPartsUsed(data.parts);
         selected.setObservations(data.obs);
-        selected.setCarPhotoPath(data.photo);
+        String portablePhotoPath = com.autoshop.app.util.StorageHelper.copyToAppStorage(data.photo);
+        selected.setCarPhotoPath(portablePhotoPath);
 
         // 3. Database Action
         try {
@@ -140,43 +143,57 @@ public class AppointmentController {
         tableManager.clearSelection();
     }
 
-    // --- HELPER: CENTRALIZED VALIDATION ---
+    // --- HELPER: FLEXIBLE VALIDATION ---
     private ValidationResult validateAndFormat(boolean allowPast) {
-        // A. Extract & Format
-        String name = Utils.toTitleCase(formManager.getClientName());
-        String phone = formManager.getClientPhone(); // Validated later
-        String plate = Utils.formatPlate(formManager.getPlate());
-        String brand = Utils.toTitleCase(formManager.getBrand());
-        String model = Utils.toTitleCase(formManager.getModel());
+        // A. Extract Data
+        String rawName = formManager.getClientName();
+        String rawPhone = formManager.getClientPhone();
+        String rawPlate = formManager.getPlate();
         Date date = formManager.getDate();
 
-        // B. Validate Required Fields
-        if (name.isEmpty() || date == null) {
-            showError("msg.req.name_date"); // "Name and Date are required"
+        // B. Formatting
+        String name = (rawName == null || rawName.trim().isEmpty()) ? "Unknown Client" : Utils.toTitleCase(rawName);
+        String phone = (rawPhone == null || rawPhone.trim().isEmpty()) ? null : rawPhone; // Null for DB
+        String plate = (rawPlate == null || rawPlate.trim().isEmpty()) ? generateTempPlate() : Utils.formatPlate(rawPlate);
+
+        String brand = Utils.toTitleCase(formManager.getBrand());
+        String model = Utils.toTitleCase(formManager.getModel());
+
+        // C. Critical Validations (Reduced to minimum)
+
+        // 1. Date is mandatory
+        if (date == null) {
+            showError("msg.req.name_date"); // You might want to rename this key to "msg.req.date"
             return null;
         }
 
-        // C. Validate Phone
-        if (!Utils.isValidPhone(phone)) {
-            showError("msg.err.phone"); // "Invalid Phone Number"
-            return null;
-        }
-
-        // D. Validate Car (Plate is critical for DB unique constraint)
-        if (plate.isEmpty() || !Utils.isValidPlate(plate)) {
-            showError("msg.err.plate"); // "Invalid License Plate"
-            return null;
-        }
-
+        // 2. Prevent past dates (only for new appointments)
         if (!allowPast && date.before(new Date())) {
-            showError("msg.err.past"); // "Cannot be in the past"
+            showError("msg.err.past");
             return null;
         }
 
-        // Return clean data bundle
+        // 3. Validate Phone ONLY if entered
+        if (phone != null && !Utils.isValidPhone(phone)) {
+            showError("msg.err.phone");
+            return null;
+        }
+
+        // 4. Validate Plate ONLY if it's a real plate (not our temp one)
+        if (!plate.startsWith("PENDING-") && !Utils.isValidPlate(plate)) {
+            showError("msg.err.plate");
+            return null;
+        }
+
+        // D. Return Safe Data
         return new ValidationResult(name, phone, plate, brand, model, formManager.getYear(),
                 formManager.getPhotoPath(), date, formManager.getProblem(),
                 formManager.getRepairs(), formManager.getParts(), formManager.getObservations());
+    }
+
+    private String generateTempPlate() {
+        // Generates a unique string like "PENDING-1712345678"
+        return "PENDING-" + System.currentTimeMillis();
     }
 
     private void showError(String langKey) {
@@ -193,12 +210,12 @@ public class AppointmentController {
 
     public void selectPhoto() {
         JFileChooser chooser = new JFileChooser();
-        // Filter for images
-        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter("Images", "jpg", "png", "jpeg"));
+        // Filter for formats
+        chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
+                "Images (JPG, PNG, WEBP)", "jpg", "png", "jpeg", "webp"));
 
         if (chooser.showOpenDialog(parentView) == JFileChooser.APPROVE_OPTION) {
             File file = chooser.getSelectedFile();
-            // Update the form with the new file
             formManager.setPhoto(file);
         }
     }

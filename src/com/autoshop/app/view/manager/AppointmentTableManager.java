@@ -13,6 +13,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 public class AppointmentTableManager {
     private final JTable table;
@@ -141,10 +142,16 @@ public class AppointmentTableManager {
             String d1 = dateFormat.format(a.getDate());
             String d2 = dateFormat.format(date);
 
-            if (a.getClientPhone().equals(phone) &&
-                    a.getCarLicensePlate().equals(plate) &&
-                    d1.equals(d2) &&
-                    a.getProblemDescription().equals(desc)) {
+            // This handles cases where a.getClientPhone() is NULL safely.
+            // (null == null) -> true
+            // (null == "0744...") -> false
+            boolean samePhone = Objects.equals(a.getClientPhone(), phone);
+
+            // We should use it for other fields too, just to be safe
+            boolean samePlate = Objects.equals(a.getCarLicensePlate(), plate);
+            boolean sameDesc = Objects.equals(a.getProblemDescription(), desc);
+
+            if (samePhone && samePlate && d1.equals(d2) && sameDesc) {
                 return a.getAppointmentID();
             }
         }

@@ -342,35 +342,37 @@ public class DatabaseHelper {
 
     // Helper: Find client by phone. If found, update name. If not found, create new.
     private static int getOrCreateClient(Connection conn, String name, String rawPhone) throws SQLException {
-        String phone = com.autoshop.app.util.Utils.normalizePhone(rawPhone);
-        int clientId = -1;
+        // 1. Handle Missing Phone
+        if (rawPhone == null) {
+            // We cannot search by phone, so we ALWAYS insert a new client.
+            // (We assume clients without phones are distinct or temporary entries)
+            return insertClient(conn, name, null);
+        }
 
-        // Check existence
-        String checkSql = "SELECT client_id FROM Clients WHERE phone = ?";
+        String phone = com.autoshop.app.util.Utils.normalizePhone(rawPhone);
+
+        // 2. Check existence BY PHONE
+        String checkSql = "SELECT client_id, name FROM Clients WHERE phone = ?";
         try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
             ps.setString(1, phone);
             ResultSet rs = ps.executeQuery();
-            if (rs.next()) clientId = rs.getInt("client_id");
+            if (rs.next()) {
+                return rs.getInt("client_id");
+            }
         }
 
-        if (clientId != -1) {
-            // Update name if changed
-            String updateSql = "UPDATE Clients SET name=? WHERE client_id=?";
-            try (PreparedStatement ps = conn.prepareStatement(updateSql)) {
-                ps.setString(1, com.autoshop.app.util.Utils.toTitleCase(name));
-                ps.setInt(2, clientId);
-                ps.executeUpdate();
-            }
-            return clientId;
-        } else {
-            // Create New
-            String insertSql = "INSERT INTO Clients(name, phone) VALUES(?, ?)";
-            try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
-                ps.setString(1, com.autoshop.app.util.Utils.toTitleCase(name));
-                ps.setString(2, phone);
-                ps.executeUpdate();
-                return ps.getGeneratedKeys().getInt(1);
-            }
+        // 3. Not found? Create
+        return insertClient(conn, name, phone);
+    }
+
+    private static int insertClient(Connection conn, String name, String phone) throws SQLException {
+        String insertSql = "INSERT INTO Clients(name, phone) VALUES(?, ?)";
+        try (PreparedStatement ps = conn.prepareStatement(insertSql, Statement.RETURN_GENERATED_KEYS)) {
+            ps.setString(1, name);
+            // setString allows null, which maps to SQL NULL
+            ps.setString(2, phone);
+            ps.executeUpdate();
+            return ps.getGeneratedKeys().getInt(1);
         }
     }
 

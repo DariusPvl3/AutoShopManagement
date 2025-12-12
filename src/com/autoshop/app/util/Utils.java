@@ -35,34 +35,22 @@ public class Utils {
     }
 
     public static boolean isValidPhone(String phone) {
-        if (phone == null || phone.isEmpty()) return false;
-        String cleanPhone = phone.replaceAll("[\\s\\-.()]", "");
-        return cleanPhone.matches("^(\\+40|0)[0-9]{9}$");
-    }
-
-    public static boolean isValidPlate(String plate) {
-        if (plate == null || plate.isEmpty()) return false;
-
-        // Regex Logic:
-        // ^[A-Z]{1,2}   -> 1 or 2 letters for County (e.g., B, TM, CJ)
-        // -             -> Dash separator
-        // [0-9]{2,3}    -> 2 or 3 digits (e.g., 05, 100)
-        // -             -> Dash separator
-        // [A-Z]{3}$     -> Exactly 3 letters at the end (e.g., AAA)
-        return plate.matches("^[A-Z]{1,2}-[0-9]{2,3}-[A-Z]{3}$");
+        return PhoneValidator.isValid(phone);
     }
 
     public static String normalizePhone(String phone) {
-        if (phone == null) return "";
-        return phone.replaceAll("[^0-9]", "");
+        // Returns +407... or 07... formatted nicely
+        String fmt = PhoneValidator.format(phone);
+        // Fallback cleanup if formatter returns raw
+        return fmt.replaceAll("\\s+", "");
     }
 
-    public static String formatPlate(String rawPlate) {
-        String clean = rawPlate.trim().toUpperCase().replaceAll("[^A-Z0-9]", "");
-        if (clean.matches("^([A-Z]{1,2})([0-9]{2,3})([A-Z]{3})$")) {
-            return clean.replaceAll("^([A-Z]{1,2})([0-9]{2,3})([A-Z]{3})$", "$1-$2-$3");
-        }
-        return clean;
+    public static boolean isValidPlate(String plate) {
+        return PlateValidator.isValid(plate);
+    }
+
+    public static String formatPlate(String plate) {
+        return PlateValidator.format(plate);
     }
 
     // --- SCROLL LOGIC UPDATES ---
