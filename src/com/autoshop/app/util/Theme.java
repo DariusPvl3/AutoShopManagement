@@ -9,4 +9,5 @@ public class Theme {
     public static final Color GRAY = new Color(149, 165, 166);
     public static final Color OFF_WHITE = new Color(245, 245, 245); // For backgrounds
     public static final Color TEXT_LIGHT = new Color(255, 255, 255); // White text
+    public static final Color GREEN = new Color(14, 168, 0);
 }

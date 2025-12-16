@@ -2,9 +2,11 @@ package com.autoshop.app.controller;
 
 import com.autoshop.app.component.ThemedDialog;
 import com.autoshop.app.model.Appointment;
+import com.autoshop.app.model.Part; // Import Part
 import com.autoshop.app.util.DatabaseHelper;
 import com.autoshop.app.util.LanguageHelper;
-import com.autoshop.app.util.Utils; // Import Utils
+import com.autoshop.app.util.StorageHelper; // Ensure StorageHelper is imported
+import com.autoshop.app.util.Utils;
 import com.autoshop.app.view.manager.AppointmentFormManager;
 import com.autoshop.app.view.manager.AppointmentTableManager;
 
@@ -13,6 +15,7 @@ import java.awt.*;
 import java.io.File;
 import java.sql.SQLException;
 import java.util.Date;
+import java.util.List; // Import List
 
 public class AppointmentController {
     private final AppointmentFormManager formManager;
@@ -27,24 +30,24 @@ public class AppointmentController {
 
     public void addAppointment() {
         // 1. Validate & Format Inputs
-        // We create a temporary object or vars to hold cleaned data
         ValidationResult data = validateAndFormat(false);
         if (data == null) return; // Validation failed, stop.
 
-        // 2. Check for Duplicates (Logic restored)
+        // 2. Check for Duplicates
+        // Note: We don't check parts for duplicates, just core details
         int duplicateId = tableManager.findDuplicateId(data.phone, data.plate, data.date, data.problem);
         if (duplicateId != -1) {
             ThemedDialog.showMessage(parentView,
                     LanguageHelper.getString("title.duplicate"),
                     LanguageHelper.getString("msg.err.duplicate"));
-            // Highlight existing
             tableManager.selectById(duplicateId, null);
             return;
         }
 
-        String portablePhotoPath = com.autoshop.app.util.StorageHelper.copyToAppStorage(data.photo);
+        // Copy Photo (USB Support)
+        String portablePhotoPath = StorageHelper.copyToAppStorage(data.photo);
 
-        // 3. Create Object
+        // 3. Create Object (Now passing List<Part>)
         Appointment newAppt = new Appointment(
                 data.name, data.phone, data.plate, data.brand, data.model,
                 data.year, portablePhotoPath, data.date, data.problem,
@@ -91,9 +94,13 @@ public class AppointmentController {
         selected.setDate(data.date);
         selected.setProblemDescription(data.problem);
         selected.setRepairs(data.repairs);
-        selected.setPartsUsed(data.parts);
+
+        selected.setPartList(data.parts); // UPDATED: Set the List<Part>
+
         selected.setObservations(data.obs);
-        String portablePhotoPath = com.autoshop.app.util.StorageHelper.copyToAppStorage(data.photo);
+
+        // Copy Photo (USB Support)
+        String portablePhotoPath = StorageHelper.copyToAppStorage(data.photo);
         selected.setCarPhotoPath(portablePhotoPath);
 
         // 3. Database Action
@@ -112,7 +119,6 @@ public class AppointmentController {
         }
     }
 
-    // ... (deleteAppointment, onSelectionChanged, clear methods remain the same) ...
     public void deleteAppointment() {
         Appointment selected = tableManager.getSelectedAppointment();
         if (selected == null) {
@@ -152,47 +158,58 @@ public class AppointmentController {
         Date date = formManager.getDate();
 
         // B. Formatting
-        String name = (rawName == null || rawName.trim().isEmpty()) ? "Unknown Client" : Utils.toTitleCase(rawName);
-        String phone = (rawPhone == null || rawPhone.trim().isEmpty()) ? null : rawPhone; // Null for DB
+        // 1. Name: Save "-" if empty
+        String name = (rawName == null || rawName.trim().isEmpty()) ? "-" : Utils.toTitleCase(rawName);
+
+        // 2. Phone: Keep NULL (Database handles this fine)
+        String phone = (rawPhone == null || rawPhone.trim().isEmpty()) ? null : rawPhone;
+
+        // 3. Plate: Keep PENDING-Timestamp (Critical for DB uniqueness)
         String plate = (rawPlate == null || rawPlate.trim().isEmpty()) ? generateTempPlate() : Utils.formatPlate(rawPlate);
 
-        String brand = Utils.toTitleCase(formManager.getBrand());
-        String model = Utils.toTitleCase(formManager.getModel());
+        // 4. Brand/Model: Save "-" if empty
+        String brand = (formManager.getBrand() == null || formManager.getBrand().isEmpty()) ? "-" : Utils.toTitleCase(formManager.getBrand());
+        String model = (formManager.getModel() == null || formManager.getModel().isEmpty()) ? "-" : Utils.toTitleCase(formManager.getModel());
 
-        // C. Critical Validations (Reduced to minimum)
+        // 5. Repairs/Observations
+        String repairs = (formManager.getRepairs() == null || formManager.getRepairs().isEmpty()) ? "-" : Utils.toTitleCase(formManager.getRepairs());
+        String observations = (formManager.getObservations() == null || formManager.getObservations().isEmpty()) ? "-" : Utils.toTitleCase(formManager.getObservations());
 
-        // 1. Date is mandatory
+        // C. Critical Validations
         if (date == null) {
-            showError("msg.req.name_date"); // You might want to rename this key to "msg.req.date"
+            showError("msg.req.name_date");
             return null;
         }
 
-        // 2. Prevent past dates (only for new appointments)
         if (!allowPast && date.before(new Date())) {
             showError("msg.err.past");
             return null;
         }
 
-        // 3. Validate Phone ONLY if entered
         if (phone != null && !Utils.isValidPhone(phone)) {
             showError("msg.err.phone");
             return null;
         }
 
-        // 4. Validate Plate ONLY if it's a real plate (not our temp one)
         if (!plate.startsWith("PENDING-") && !Utils.isValidPlate(plate)) {
             showError("msg.err.plate");
             return null;
         }
 
+        if (formManager.hasUnsavedPartInput()) {
+            formManager.forceAddCurrentPart();
+        }
+        List<Part> parts = formManager.getParts();
+
         // D. Return Safe Data
-        return new ValidationResult(name, phone, plate, brand, model, formManager.getYear(),
+        return new ValidationResult(
+                name, phone, plate, brand, model, formManager.getYear(),
                 formManager.getPhotoPath(), date, formManager.getProblem(),
-                formManager.getRepairs(), formManager.getParts(), formManager.getObservations());
+                repairs, parts, observations
+        );
     }
 
     private String generateTempPlate() {
-        // Generates a unique string like "PENDING-1712345678"
         return "PENDING-" + System.currentTimeMillis();
     }
 
@@ -202,15 +219,15 @@ public class AppointmentController {
                 LanguageHelper.getString(langKey));
     }
 
-    // Simple Data Carrier for validated input
+    // UPDATED: 'parts' is now List<Part>, not String
     private record ValidationResult(
             String name, String phone, String plate, String brand, String model,
-            int year, String photo, Date date, String problem, String repairs, String parts, String obs
+            int year, String photo, Date date, String problem, String repairs,
+            List<Part> parts, String obs
     ) {}
 
     public void selectPhoto() {
         JFileChooser chooser = new JFileChooser();
-        // Filter for formats
         chooser.setFileFilter(new javax.swing.filechooser.FileNameExtensionFilter(
                 "Images (JPG, PNG, WEBP)", "jpg", "png", "jpeg", "webp"));
 
@@ -220,11 +237,15 @@ public class AppointmentController {
         }
     }
 
+    // UPDATED: Includes USB relative path fix and WEBP check
     public void viewPhoto() {
-        String path = formManager.getPhotoPath();
-        if (path == null || path.isEmpty()) return;
+        String relativePath = formManager.getPhotoPath();
+        if (relativePath == null || relativePath.isEmpty()) return;
 
-        File file = new File(path);
+        // Resolve absolute path for USB support
+        String absolutePath = StorageHelper.getAbsolutePath(relativePath);
+
+        File file = new File(absolutePath);
         if (!file.exists()) {
             ThemedDialog.showMessage(parentView,
                     LanguageHelper.getString("title.error"),
@@ -233,14 +254,24 @@ public class AppointmentController {
         }
 
         try {
-            // 1. Read Image
+            // Check for WEBP
+            if (file.getName().toLowerCase().endsWith(".webp")) {
+                ThemedDialog.showMessage(parentView, "Info",
+                        "Preview not supported for WEBP files.\nThe file is saved safely!");
+                if (Desktop.isDesktopSupported()) {
+                    Desktop.getDesktop().open(file);
+                }
+                return;
+            }
+
+            // Read Image
             java.awt.image.BufferedImage rawImage = javax.imageio.ImageIO.read(file);
             if (rawImage == null) {
                 ThemedDialog.showMessage(parentView, "Error", "Cannot load image format.");
                 return;
             }
 
-            // 2. Scale Logic (Fit to screen/dialog)
+            // Scale Logic
             int maxWidth = 800;
             int maxHeight = 600;
             int imgW = rawImage.getWidth();
@@ -254,9 +285,9 @@ public class AppointmentController {
 
             Image scaledImage = rawImage.getScaledInstance(imgW, imgH, Image.SCALE_SMOOTH);
 
-            // 3. Show Dialog
+            // Show Dialog
             JDialog photoDialog = new JDialog();
-            photoDialog.setTitle("Photo Viewer");
+            photoDialog.setTitle("Photo Viewer - " + file.getName());
             photoDialog.setLayout(new BorderLayout());
             photoDialog.add(new JScrollPane(new JLabel(new ImageIcon(scaledImage))), BorderLayout.CENTER);
             photoDialog.setSize(imgW + 50, imgH + 80);

@@ -73,9 +73,29 @@ public class DashboardController {
     private void refreshTable() {
         tableModel.setRowCount(0);
         for (Appointment a : appointmentList) {
+
+            // --- 1. Mask the "PENDING-..." Plate ---
+            String displayPlate = a.getCarLicensePlate();
+            if (displayPlate != null && displayPlate.startsWith("PENDING-")) {
+                displayPlate = "-";
+            }
+
+            // --- 2. Mask the NULL Phone ---
+            String displayPhone = a.getClientPhone();
+            if (displayPhone == null || displayPhone.isEmpty()) {
+                displayPhone = "-";
+            }
+
+            // --- 3. Add Row with Clean Data ---
             tableModel.addRow(new Object[]{
-                    a.getClientName(), a.getClientPhone(), a.getCarLicensePlate(),
-                    a.getCarBrand(), dateFormat.format(a.getDate()), a.getStatus()
+                    a.getClientName(),
+                    displayPhone,
+                    displayPlate,
+                    a.getCarBrand(),
+                    a.getCarModel(),
+                    dateFormat.format(a.getDate()),
+                    a.getProblemDescription(),
+                    a.getStatus()
             });
         }
     }

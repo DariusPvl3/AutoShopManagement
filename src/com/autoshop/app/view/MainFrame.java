@@ -48,7 +48,7 @@ public class MainFrame extends JFrame {
     private void initFrame() {
         setUndecorated(true);
         WindowResizeHelper.install(this);
-        setTitle("AutoShop Scheduler V1.4.2"); // Updated Version
+        setTitle("AutoShop Scheduler V1.5.0");
 
         // Calculate Screen Bounds (Respecting Taskbar)
         Toolkit toolkit = Toolkit.getDefaultToolkit();
@@ -59,7 +59,15 @@ public class MainFrame extends JFrame {
         int height = screenSize.height - scnMax.top - scnMax.bottom;
 
         setBounds(scnMax.left, scnMax.top, width, height);
-        setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
+        setDefaultCloseOperation(JFrame.DO_NOTHING_ON_CLOSE);
+
+        addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosing(java.awt.event.WindowEvent e) {
+                shutdownApplication();
+            }
+        });
+
         setLocationRelativeTo(null);
         setAppIcon();
     }
@@ -77,7 +85,7 @@ public class MainFrame extends JFrame {
         JPanel topSection = new JPanel(new BorderLayout());
 
         // A. Title Bar
-        topSection.add(new CustomTitleBar(this, "AutoShop Scheduler V1.4.3"), BorderLayout.NORTH);
+        topSection.add(new CustomTitleBar(this, "AutoShop Scheduler V1.5.0"), BorderLayout.NORTH);
 
         // B. Menu
         JPanel menuPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 10));
@@ -175,6 +183,12 @@ public class MainFrame extends JFrame {
         } else {
             System.err.println("Warning: Logo not found at /resources/logo.png");
         }
+    }
+
+    public void shutdownApplication() {
+        NotificationService.stop();
+        dispose();
+        System.exit(0);
     }
 
     // --- HELP DIALOG LOGIC ---

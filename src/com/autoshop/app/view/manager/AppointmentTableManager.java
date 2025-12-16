@@ -81,11 +81,33 @@ public class AppointmentTableManager {
     private void updateTableModel() {
         tableModel.setRowCount(0);
         for (Appointment a : appointmentList) {
+
+            // --- 1. Mask the "PENDING-..." Plate ---
+            String displayPlate = a.getCarLicensePlate();
+            if (displayPlate != null && displayPlate.startsWith("PENDING-")) {
+                displayPlate = "-";
+            }
+
+            // --- 2. Mask the NULL Phone ---
+            String displayPhone = a.getClientPhone();
+            if (displayPhone == null || displayPhone.isEmpty()) {
+                displayPhone = "-";
+            }
+
+            // --- 3. Add Row with Clean Data ---
             tableModel.addRow(new Object[]{
-                    a.getClientName(), a.getClientPhone(), a.getCarLicensePlate(),
-                    a.getCarBrand(), a.getCarModel(), a.getCarYear(),
-                    dateFormat.format(a.getDate()), a.getProblemDescription(), a.getRepairs(),
-                    a.getPartsUsed(), a.getObservations(), a.getStatus()
+                    a.getClientName(), // Already "-" if empty (handled by Controller)
+                    displayPhone,      // Calculated above
+                    displayPlate,      // Calculated above
+                    a.getCarBrand(),   // Already "-" if empty (handled by Controller)
+                    a.getCarModel(),   // Already "-" if empty (handled by Controller)
+                    a.getCarYear(),
+                    dateFormat.format(a.getDate()),
+                    a.getProblemDescription(),
+                    a.getRepairs(),
+                    a.getPartsSummary(),
+                    a.getObservations(),
+                    a.getStatus()
             });
         }
     }

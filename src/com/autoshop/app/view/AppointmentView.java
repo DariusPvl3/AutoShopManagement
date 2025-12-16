@@ -8,6 +8,7 @@ import com.autoshop.app.view.manager.AppointmentTableManager;
 
 import javax.swing.*;
 import java.awt.*;
+import java.awt.event.*;
 import java.util.Date;
 
 public class AppointmentView extends JPanel {
@@ -16,8 +17,6 @@ public class AppointmentView extends JPanel {
     private final AppointmentFormManager formManager;
     private final AppointmentTableManager tableManager;
     private final AppointmentController controller;
-
-    private Timer refreshTimer;
 
     public AppointmentView() {
         setLayout(new BorderLayout());
@@ -32,6 +31,7 @@ public class AppointmentView extends JPanel {
 
         // 3. Wire Up Events (The Controller connects them)
         setupListeners();
+        setupShortcuts();
 
         // 4. Initial Load
         addComponentListener(new java.awt.event.ComponentAdapter() {
@@ -50,9 +50,6 @@ public class AppointmentView extends JPanel {
         // Initial text update
         formManager.updateText();
         tableManager.updateHeaders();
-
-        // 6. Auto-Refresh Timer (30s)
-        setupAutoRefresh();
     }
 
     private void buildLayout() {
@@ -102,14 +99,52 @@ public class AppointmentView extends JPanel {
         });
     }
 
-    private void setupAutoRefresh() {
-        refreshTimer = new Timer(30000, e -> {
-            JTable t = tableManager.getTable();
-            if (t != null && !t.isEditing()) {
-                tableManager.refreshData();
+    private void setupShortcuts() {
+        // Get the InputMap for the entire panel (WHEN_IN_FOCUSED_WINDOW is the secret sauce)
+        InputMap inputMap = this.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        ActionMap actionMap = this.getActionMap();
+
+        // 1. CTRL + S -> ADD
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_S, InputEvent.CTRL_DOWN_MASK), "save");
+        actionMap.put("save", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (formManager.getAddButton().isEnabled()) {
+                    controller.addAppointment();
+                }
             }
         });
-        refreshTimer.start();
+
+        // 2. CTRL + E -> UPDATE
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_E, InputEvent.CTRL_DOWN_MASK), "update");
+        actionMap.put("update", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (formManager.getUpdateButton().isEnabled()) {
+                    controller.updateAppointment();
+                }
+            }
+        });
+
+        // 3. CTRL + R -> RESET / CLEAR
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_R, InputEvent.CTRL_DOWN_MASK), "reset");
+        actionMap.put("reset", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                controller.clear();
+            }
+        });
+
+        // 4. DELETE -> DELETE APPOINTMENT
+        inputMap.put(KeyStroke.getKeyStroke(KeyEvent.VK_DELETE, 0), "delete");
+        actionMap.put("delete", new AbstractAction() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                if (formManager.getDeleteButton().isEnabled()) {
+                    controller.deleteAppointment();
+                }
+            }
+        });
     }
 
     // --- Public Methods needed by MainFrame ---

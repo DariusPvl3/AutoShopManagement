@@ -1,11 +1,14 @@
 package com.autoshop.app.component;
 
 import com.autoshop.app.util.Theme;
+
 import javax.swing.*;
 import javax.swing.plaf.basic.BasicSpinnerUI;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
+import java.util.Calendar;
+import java.util.Date;
 
 public class ModernSpinnerUI extends BasicSpinnerUI {
 
@@ -13,7 +16,6 @@ public class ModernSpinnerUI extends BasicSpinnerUI {
     protected Component createNextButton() {
         JButton btn = createArrowButton(SwingConstants.NORTH);
         btn.setName("Spinner.nextButton");
-        // Install the "Hold to Repeat" logic (true = Next/Up)
         installButtonLogic(btn, true);
         return btn;
     }
@@ -22,37 +24,24 @@ public class ModernSpinnerUI extends BasicSpinnerUI {
     protected Component createPreviousButton() {
         JButton btn = createArrowButton(SwingConstants.SOUTH);
         btn.setName("Spinner.previousButton");
-        // Install the "Hold to Repeat" logic (false = Previous/Down)
         installButtonLogic(btn, false);
         return btn;
     }
 
-    // --- NEW HELPER METHOD FOR AUTO-REPEAT ---
+    // --- LOGIC FOR 30-MINUTE SNAP ---
     private void installButtonLogic(JButton btn, boolean isNext) {
-        // 1. Create a Timer that fires every 60ms (fast speed)
         Timer timer = new Timer(60, e -> {
             if (spinner != null && spinner.isEnabled()) {
-                Object newValue = isNext ? spinner.getNextValue() : spinner.getPreviousValue();
-                if (newValue != null) {
-                    spinner.setValue(newValue);
-                }
+                calculateAndSetValue(isNext);
             }
         });
-        // 2. Initial Delay: Wait 400ms before starting the fast speed
-        // This prevents the value from jumping wildly if you just wanted 1 click.
         timer.setInitialDelay(400);
 
-        // 3. Attach Mouse Listener to Start/Stop the timer
         btn.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
                 if (SwingUtilities.isLeftMouseButton(e) && spinner.isEnabled()) {
-                    // A. Update Immediately (for the first click)
-                    Object newValue = isNext ? spinner.getNextValue() : spinner.getPreviousValue();
-                    if (newValue != null) {
-                        spinner.setValue(newValue);
-                    }
-                    // B. Start the timer for "Holding"
+                    calculateAndSetValue(isNext);
                     timer.start();
                 }
             }
@@ -64,10 +53,67 @@ public class ModernSpinnerUI extends BasicSpinnerUI {
 
             @Override
             public void mouseExited(MouseEvent e) {
-                // Stop if the mouse slips off the button while holding
                 timer.stop();
             }
         });
+    }
+
+    private void calculateAndSetValue(boolean isNext) {
+        Object current = spinner.getValue();
+        Object newValue;
+
+        // 1. If it's a Date (Time Spinner), use our Smart 30-min Snap Logic
+        if (current instanceof Date) {
+            newValue = getSnappedDate((Date) current, isNext);
+        }
+        // 2. Fallback for normal number spinners (just +1 or -1)
+        else {
+            newValue = isNext ? spinner.getNextValue() : spinner.getPreviousValue();
+        }
+
+        if (newValue != null) {
+            spinner.setValue(newValue);
+        }
+    }
+
+    /**
+     * Calculates the next/previous time snapped to 00 or 30.
+     * Examples (isNext = true):
+     * 12:00 -> 12:30
+     * 12:15 -> 12:30
+     * 12:30 -> 13:00
+     */
+    private Date getSnappedDate(Date current, boolean isNext) {
+        Calendar cal = Calendar.getInstance();
+        cal.setTime(current);
+        int minute = cal.get(Calendar.MINUTE);
+
+        if (isNext) {
+            // GOING UP
+            if (minute < 30) {
+                minute = 30; // Snap to half hour
+            } else {
+                minute = 0;  // Snap to next hour
+                cal.add(Calendar.HOUR_OF_DAY, 1);
+            }
+        } else {
+            // GOING DOWN
+            if (minute > 30) {
+                minute = 30; // Snap down to half hour
+            } else if (minute > 0 && minute <= 30) {
+                minute = 0;  // Snap down to hour
+            } else {
+                minute = 30; // Snap back to previous half hour
+                cal.add(Calendar.HOUR_OF_DAY, -1);
+            }
+        }
+
+        // Apply clean minutes and zero out seconds
+        cal.set(Calendar.MINUTE, minute);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MILLISECOND, 0);
+
+        return cal.getTime();
     }
 
     private JButton createArrowButton(int direction) {
@@ -80,7 +126,6 @@ public class ModernSpinnerUI extends BasicSpinnerUI {
                 boolean isHover = getModel().isRollover();
                 boolean isPressed = getModel().isPressed();
 
-                // Colors
                 Color bgColor;
                 Color arrowColor;
 
@@ -95,11 +140,9 @@ public class ModernSpinnerUI extends BasicSpinnerUI {
                     arrowColor = Theme.RED;
                 }
 
-                // Background
                 g2.setColor(bgColor);
                 g2.fillRect(0, 0, getWidth(), getHeight());
 
-                // Arrow
                 int w = getWidth();
                 int h = getHeight();
                 int arrowSize = 5;
@@ -118,8 +161,6 @@ public class ModernSpinnerUI extends BasicSpinnerUI {
                 }
 
                 g2.fillPolygon(triangle);
-
-                // Border
                 g2.setColor(Color.LIGHT_GRAY);
                 g2.drawLine(0, 0, 0, h);
                 if (direction == SwingConstants.NORTH) {
@@ -130,7 +171,6 @@ public class ModernSpinnerUI extends BasicSpinnerUI {
             }
         };
 
-        // Button Settings
         btn.setBorder(BorderFactory.createEmptyBorder());
         btn.setContentAreaFilled(false);
         btn.setFocusPainted(false);

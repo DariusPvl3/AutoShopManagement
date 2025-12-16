@@ -1,6 +1,7 @@
 package com.autoshop.app.component;
 
 import com.autoshop.app.util.Theme;
+import com.autoshop.app.view.MainFrame;
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.*;
@@ -27,7 +28,15 @@ public class CustomTitleBar extends JPanel {
         controls.setOpaque(false);
 
         JButton minimizeBtn = createControlBtn("_", e -> frame.setState(Frame.ICONIFIED));
-        JButton closeBtn = createControlBtn("X", e -> System.exit(0));
+        JButton closeBtn = createControlBtn("X", e -> {
+            // Check if we can use the safe shutdown method
+            if (frame instanceof MainFrame) {
+                ((MainFrame) frame).shutdownApplication();
+            } else {
+                // Fallback for other windows (like Help Dialogs)
+                System.exit(0);
+            }
+        });
 
         // Make Close button turn red on hover
         closeBtn.addMouseListener(new java.awt.event.MouseAdapter() {

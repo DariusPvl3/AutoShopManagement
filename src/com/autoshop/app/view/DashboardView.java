@@ -65,7 +65,7 @@ public class DashboardView extends JPanel {
     }
 
     private void initDataComponents() {
-        String[] columns = {"Client Name", "Phone", "License Plate", "Brand", "Date", "Status"};
+        String[] columns = {"Client Name", "Phone", "License Plate", "Brand", "Model", "Date", "Problem", "Status"};
         tableModel = new DefaultTableModel(columns, 0) {
             @Override public boolean isCellEditable(int row, int column) { return false; }
         };
@@ -128,8 +128,8 @@ public class DashboardView extends JPanel {
         tableHeader.setForeground(HEADER_COLOR);
         panel.add(tableHeader, BorderLayout.NORTH);
 
-        agendaTable = SwingTableStyler.create(tableModel, 5);
-        agendaTable.getColumnModel().getColumn(5).setCellRenderer(new StatusCellRenderer());
+        agendaTable = SwingTableStyler.create(tableModel, 7);
+        agendaTable.getColumnModel().getColumn(7).setCellRenderer(new StatusCellRenderer());
 
         JScrollPane scrollPane = new JScrollPane(agendaTable);
         scrollPane.getViewport().setBackground(Theme.WHITE);
@@ -197,10 +197,11 @@ public class DashboardView extends JPanel {
             String[] cols = {
                     LanguageHelper.getString("col.client"), LanguageHelper.getString("col.phone"),
                     LanguageHelper.getString("col.plate"), LanguageHelper.getString("col.brand"),
-                    LanguageHelper.getString("col.date"), LanguageHelper.getString("col.status")
+                    LanguageHelper.getString("col.model"), LanguageHelper.getString("col.date"),
+                    LanguageHelper.getString("col.problem"), LanguageHelper.getString("col.status")
             };
             tableModel.setColumnIdentifiers(cols);
-            agendaTable.getColumnModel().getColumn(5).setCellRenderer(new StatusCellRenderer());
+            agendaTable.getColumnModel().getColumn(7).setCellRenderer(new StatusCellRenderer());
 
             calendar.setLocale(LanguageHelper.getCurrentLocale());
             StatusMenuHelper.attach(agendaTable, controller.getAppointmentList(), controller::loadData, this);

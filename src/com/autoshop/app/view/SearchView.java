@@ -159,12 +159,24 @@ public class SearchView extends JPanel {
 
     private void refreshTable() {
         tableModel.setRowCount(0);
+
         for (Appointment a : resultsList) {
+
+            String displayPlate = a.getCarLicensePlate();
+            if (displayPlate != null && displayPlate.startsWith("PENDING-")) {
+                displayPlate = "-";
+            }
+
+            String displayPhone = a.getClientPhone();
+            if (displayPhone == null || displayPhone.isEmpty()) {
+                displayPhone = "-";
+            }
+
             tableModel.addRow(new Object[]{
-                    a.getClientName(), a.getClientPhone(), a.getCarLicensePlate(),
+                    a.getClientName(), displayPhone, displayPlate,
                     a.getCarBrand(), a.getCarModel(), a.getCarYear(),
                     dateFormat.format(a.getDate()), a.getProblemDescription(), a.getRepairs(),
-                    a.getPartsUsed(), a.getObservations(), a.getStatus()
+                    a.getPartsSummary(), a.getObservations(), a.getStatus()
             });
         }
     }

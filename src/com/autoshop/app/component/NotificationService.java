@@ -91,4 +91,18 @@ public class NotificationService {
             Toolkit.getDefaultToolkit().beep();
         }
     }
+
+    public static void stop() {
+        // 1. Stop the background timer
+        if (timer != null) {
+            timer.cancel();
+            timer = null;
+        }
+
+        // 2. Remove the icon from the Windows Taskbar
+        if (SystemTray.isSupported() && trayIcon != null) {
+            SystemTray.getSystemTray().remove(trayIcon);
+            trayIcon = null;
+        }
+    }
 }
